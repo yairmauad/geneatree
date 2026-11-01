@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneaTree Pro | Archivo e Investigación Genealógica</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Cinzel', 'Georgia', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+
+  </script>
+  <style>
+    /* Estructura jerárquica con conectores CSS fluidos */
+    .tree ul {
+      padding-top: 20px;
+      position: relative;
+      transition: all 0.3s;
+      display: flex;
+      justify-content: center;
+    }
+    .tree li {
+      float: left;
+      text-align: center;
+      list-style-type: none;
+      position: relative;
+      padding: 20px 8px 0 8px;
+      transition: all 0.3s;
+    }
+    /* Conectores superiores y laterales */
+    .tree li::before, .tree li::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 50%;
+      border-top: 2px solid #cbd5e1;
+      width: 50%;
+      height: 20px;
+    }
+    .tree li::after {
+      right: auto;
+      left: 50%;
+      border-left: 2px solid #cbd5e1;
+    }
+    .tree li:only-child::after, .tree li:only-child::before {
+      display: none;
+    }
+    .tree li:only-child {
+      padding-top: 0;
+    }
+    .tree li:first-child::before, .tree li:last-child::after {
+      border: 0 none;
+    }
+    .tree li:last-child::before {
+      border-right: 2px solid #cbd5e1;
+      border-radius: 0 6px 0 0;
+    }
+    .tree li:first-child::after {
+      border-radius: 6px 0 0 0;
+    }
+    /* Conector vertical descendente desde el padre */
+    .tree ul ul::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      border-left: 2px solid #cbd5e1;
+      width: 0;
+      height: 20px;
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .rx-input{display:block;width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;background:#f8fafc;color:#1e293b}.rx-input:focus{outline:2px solid #818cf8;background:white}.rx-label{display:block;font-size:11px;font-weight:600}.rx-label .rx-input{margin-top:4px}.rx-person{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:8px;font-size:12px}.rx-person.active{background:#eef2ff;color:#4338ca;font-weight:700}.rx-card{border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#fff}.rx-pill{font-size:10px;border-radius:999px;padding:3px 7px;background:#f1f5f9;color:#475569}
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- BARRA DE NAVEGACIÓN Y PESTAÑAS PRINCIPALES -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-700 to-indigo-900 text-white flex items-center justify-center shadow-md">
+          <i class="fa-solid fa-tree text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-serif text-lg sm:text-xl font-bold tracking-tight text-slate-900 leading-tight">
+            GeneaTree Pro
+          </h1>
+          <p class="text-[11px] sm:text-xs text-slate-500">
+            Editor y generador interactivo con soporte de actas y planillas
+          </p>
+        </div>
+      </div>
+
+      <!-- Conmutador de Pestañas: Árbol vs Planilla -->
+      <div class="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
+        <div class="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 text-xs font-semibold">
+          <button id="tab-btn-tree" onclick="switchTab('tree')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-xs transition">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>Árbol Visual</span>
+          </button>
+          <button id="tab-btn-sheet" onclick="switchTab('sheet')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-table"></i>
+            <span>Planilla / Editor</span>
+            <span id="badge-people-count" class="bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded-full text-[10px] font-bold">0</span>
+          </button>
+          <button id="tab-btn-research" onclick="switchTab('research')" class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-book-open"></i><span>Investigación</span>
+          </button>
+        </div>
+
+        <!-- Botones de Acción Global -->
+        <div class="flex items-center gap-1.5">
+          <button onclick="openModal('importExportModal')" title="Importar / Exportar" class="p-2 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium transition shadow-xs flex items-center gap-1.5">
+            <i class="fa-solid fa-file-arrow-up text-indigo-600"></i>
+            <span class="hidden sm:inline">Importar / Exportar</span>
+          </button>
+          <button onclick="loadExampleData()" title="Cargar Familia Ponce-Rosales" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+            <span class="hidden md:inline">Cargar Ponce-Rosales</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CONTENEDOR DE CONTENIDO (ÁRBOL O PLANILLA) -->
+  <div class="flex-1 flex flex-col relative overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- VISTA 1: ÁRBOL VISUAL INTERACTIVO          -->
+    <!-- ========================================== -->
+    <div id="view-tree" class="flex-1 flex flex-col h-full relative">
+      
+      <!-- Barra de herramientas flotante del Árbol -->
+      <div class="bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-2.5 z-20 text-xs">
+        
+        <!-- Filtro y Búsqueda -->
+        <div class="flex items-center gap-2 flex-1 min-w-[240px] max-w-md">
+          <div class="relative w-full">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="tree-search-input" oninput="handleSearch(this.value)" placeholder="Buscar por nombre, lugar o año..." class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs text-slate-700">
+          </div>
+          <select id="branch-select-filter" onchange="filterByBranch(this.value)" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="all">Todas las Ramas</option>
+            <option value="paterna">Rama Paterna</option>
+            <option value="materna">Rama Materna</option>
+            <option value="general">Otras / General</option>
+          </select>
+        </div>
+
+        <!-- Controles de Navegación y Zoom -->
+        <div class="flex items-center gap-1.5">
+          <div class="inline-flex rounded-lg border border-slate-200 bg-white shadow-xs p-0.5">
+            <button onclick="zoomTree(0.1)" title="Acercar" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded">
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+            <button onclick="resetZoom()" title="Restablecer escala 100%" class="px-2 h-7 flex items-center justify-center font-mono text-[11px] text-slate-600 hover:bg-slate-50 rounded">
+              <span id="zoom-indicator">100%</span>
+            </button>
+            <button onclick="zoomTree(-0.1)" title="Alejar" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded">
+              <i class="fa-solid fa-minus text-xs"></i>
+            </button>
+          </div>
+
+          <div class="h-5 w-px bg-slate-200"></div>
+
+          <button onclick="expandAllNodes()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium transition shadow-xs flex items-center gap-1">
+            <i class="fa-solid fa-angles-down text-slate-400"></i>
+            <span>Expandir</span>
+          </button>
+          <button onclick="collapseAllNodes()" class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium transition shadow-xs flex items-center gap-1">
+            <i class="fa-solid fa-angles-up text-slate-400"></i>
+            <span>Colapsar</span>
+          </button>
+          <button onclick="openAddPersonModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition shadow-xs flex items-center gap-1.5">
+            <i class="fa-solid fa-user-plus text-xs"></i>
+            <span>Agregar Familiar</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Canvas Interactivo con Zoom y Pan -->
+      <div id="tree-viewport" class="flex-1 overflow-auto p-8 custom-scrollbar bg-slate-100 flex justify-center items-start">
+        <div id="tree-container" class="tree origin-top transition-transform duration-200 min-w-max pb-32">
+          <!-- El árbol jerárquico se inyecta dinámicamente aquí -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VISTA 2: PLANILLA / EDITOR TIPO EXCEL      -->
+    <!-- ========================================== -->
+    <div id="view-sheet" class="flex-1 flex flex-col h-full bg-slate-50 hidden">
+      
+      <!-- Barra superior de la planilla -->
+      <div class="bg-white border-b border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="font-serif font-bold text-slate-900 text-base">Planilla de Personas y Filiaciones</h2>
+          <p class="text-xs text-slate-500">Edita datos directamente, añade ancestros o gestiona las relaciones genealógicas.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openAddPersonModal()" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-user-plus"></i> Nueva Fila / Persona
+          </button>
+          <button onclick="confirmClearAll()" class="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold shadow-xs flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-trash-can"></i> Limpiar Todo
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabla interactiva -->
+      <div class="flex-1 overflow-auto p-4 custom-scrollbar">
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100/80 border-b border-slate-200 text-slate-600 uppercase text-[10px] tracking-wider font-bold">
+                <th class="p-3 w-16">ID</th>
+                <th class="p-3 min-w-[180px]">Nombre Completo</th>
+                <th class="p-3 w-20">Sexo</th>
+                <th class="p-3 min-w-[120px]">Nacimiento</th>
+                <th class="p-3 min-w-[140px]">Lugar</th>
+                <th class="p-3 min-w-[120px]">Defunción</th>
+                <th class="p-3 min-w-[150px]">Padre</th>
+                <th class="p-3 min-w-[150px]">Madre</th>
+                <th class="p-3 min-w-[110px]">Rama</th>
+                <th class="p-3 min-w-[200px]">Notas de Actas / Registro</th>
+                <th class="p-3 text-right w-24">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="sheet-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Las filas se renderizan dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- VISTA 3: CENTRO DE INVESTIGACIÓN GENEALÓGICA -->
+    <section id="view-research" class="hidden flex-1 overflow-auto bg-slate-50 p-4 sm:p-6 custom-scrollbar">
+      <div class="max-w-7xl mx-auto space-y-5">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div><p class="text-xs font-bold uppercase tracking-widest text-indigo-600">GeneaTree Pro · Archivo familiar</p><h2 class="font-serif text-2xl font-bold text-slate-900">Centro de investigación</h2><p class="text-sm text-slate-500">La historia detrás de cada nombre: datos, documentos, relaciones y migraciones.</p></div>
+          <div class="flex flex-wrap gap-2"><button onclick="downloadFullBackup()" class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold"><i class="fa-solid fa-download mr-1"></i> Respaldo completo</button><button onclick="document.getElementById('full-backup-file').click()" class="px-3 py-2 rounded-lg border bg-white text-xs font-semibold"><i class="fa-solid fa-upload mr-1"></i> Restaurar respaldo</button><input id="full-backup-file" type="file" accept=".json,application/json" class="hidden" onchange="restoreFullBackup(event)"></div>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="research-stats"></div>
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div class="xl:col-span-1 bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between"><h3 class="font-bold text-slate-800">Persona investigada</h3><span class="text-[10px] text-slate-400">FICHA AMPLIADA</span></div>
+            <input id="research-person-search" oninput="renderResearchPeople()" placeholder="Buscar persona..." class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <div id="research-people-list" class="max-h-72 overflow-auto space-y-1 custom-scrollbar"></div>
+            <div id="research-person-form" class="hidden border-t pt-3 space-y-2">
+              <h4 id="research-person-title" class="font-semibold text-indigo-800"></h4>
+              <label class="block text-xs font-semibold">Nombre completo / variantes / apodos<input id="rx-names" class="rx-input" placeholder="Otros nombres, grafías, alias"></label>
+              <div class="grid grid-cols-2 gap-2"><label class="rx-label">Nacionalidad<input id="rx-nationality" class="rx-input"></label><label class="rx-label">Residencia<input id="rx-residence" class="rx-input"></label><label class="rx-label col-span-2">Foto / retrato (URL)<input id="rx-photo" class="rx-input" placeholder="https://..." oninput="previewResearchPhoto()"><img id="rx-photo-preview" class="hidden mt-2 max-h-40 rounded-lg border border-slate-200 object-cover" alt="Vista previa del retrato"></label><label class="rx-label">Matrimonio / unión<input id="rx-marriage" class="rx-input" placeholder="Fecha y lugar"></label><label class="rx-label">Migración<input id="rx-migration" class="rx-input" placeholder="Origen, destino, año"></label></div>
+              <label class="block text-xs font-semibold">Historia biográfica<textarea id="rx-bio" rows="4" class="rx-input" placeholder="Relato biográfico basado en fuentes..."></textarea></label>
+              <label class="block text-xs font-semibold">Certeza general<select id="rx-certainty" class="rx-input"><option value="investigacion">En investigación</option><option value="probable">Probable / inferido</option><option value="documentado">Documentado</option></select></label>
+              <button onclick="saveResearchPerson()" class="w-full rounded-lg bg-indigo-600 text-white py-2 text-xs font-bold">Guardar ficha ampliada</button>
+            </div>
+          </div>
+          <div class="xl:col-span-2 space-y-4">
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3"><div class="flex items-center justify-between gap-2"><h3 class="font-bold">Fuentes documentales</h3><span id="source-count" class="text-xs text-slate-400">0 fuentes</span></div><p class="text-xs text-slate-500">Registrá actas, censos, partidas, fotos, archivos y testimonios. Cada fuente queda asociada a una persona.</p>
+              <label class="block text-xs font-semibold">Personas mencionadas en este documento <select id="src-people" class="rx-input mt-1" multiple size="4" title="Podés seleccionar varias personas, por ejemplo todos los integrantes de un hogar censado"></select><span class="block text-[10px] text-slate-500 font-normal mt-1">Podés seleccionar varias personas. Es útil para censos, matrimonios y actas que mencionan familiares o testigos.</span></label><div class="rounded-lg bg-indigo-50 border border-indigo-100 p-3"><p class="text-xs font-semibold text-indigo-900">Tipo de documento</p><p class="text-[11px] text-indigo-700 mt-1">Podés cargar partidas sacramentales de FamilySearch, actas del Registro Civil y censos históricos. Los campos específicos se guardan junto con la fuente.</p></div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><input id="src-title" class="rx-input" placeholder="Título (ej. Bautismo de Juan Mauad)"><select id="src-type" class="rx-input"><option value="Bautismo">Bautismo / partida parroquial</option><option value="Nacimiento civil">Acta de nacimiento (Registro Civil)</option><option value="Matrimonio civil">Acta de matrimonio civil</option><option value="Matrimonio religioso">Matrimonio religioso</option><option value="Defunción civil">Acta de defunción (Registro Civil)</option><option value="Defunción parroquial">Registro parroquial de defunción</option><option value="Censo / padrón">Censo / padrón</option><option value="Registro parroquial">Otro registro parroquial</option><option value="Expediente / protocolo">Expediente / protocolo</option><option value="Fotografía">Fotografía</option><option value="Testimonio oral">Testimonio oral</option><option value="Pasaporte / migración">Pasaporte / migración</option><option value="Otro">Otro</option></select><input id="src-archive" class="rx-input" placeholder="Archivo / institución (FamilySearch, Registro Civil...)"><input id="src-collection" class="rx-input" placeholder="Colección / fondo / serie"><input id="src-place" class="rx-input" placeholder="Localidad / jurisdicción"><input id="src-date" class="rx-input" placeholder="Fecha del documento (admite aprox.)"></div>
+              <details class="rounded-lg border border-slate-200 p-3"><summary class="cursor-pointer text-xs font-semibold text-slate-700">Datos archivísticos y referencias (tomo, folio, imagen...)</summary><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3"><input id="src-volume" class="rx-input" placeholder="Libro / tomo / volumen"><input id="src-folio" class="rx-input" placeholder="Folio / página / número de acta"><input id="src-film" class="rx-input" placeholder="FamilySearch: DGS / número de microfilm"><input id="src-image" class="rx-input" placeholder="Número de imagen"><input id="src-parish" class="rx-input" placeholder="Parroquia / registro / oficina"><input id="src-officiant" class="rx-input" placeholder="Sacerdote / funcionario (si consta)"><input id="src-godparents" class="rx-input" placeholder="Padrinos / testigos"><input id="src-role" class="rx-input" placeholder="Rol de la persona (bautizado, testigo, jefe de hogar...)"></div></details>
+              <details class="rounded-lg border border-slate-200 p-3"><summary class="cursor-pointer text-xs font-semibold text-slate-700">Datos de censo / hogar (si corresponde)</summary><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3"><input id="src-census-year" class="rx-input" placeholder="Año del censo"><input id="src-household" class="rx-input" placeholder="Hogar / número de vivienda / familia"><input id="src-head" class="rx-input" placeholder="Jefe/a de hogar"><input id="src-relationship" class="rx-input" placeholder="Parentesco declarado"><input id="src-age" class="rx-input" placeholder="Edad declarada"><input id="src-birthplace" class="rx-input" placeholder="Lugar de nacimiento declarado"><input id="src-nationality" class="rx-input" placeholder="Nacionalidad declarada"><input id="src-occupation" class="rx-input" placeholder="Ocupación declarada"></div></details>
+              <textarea id="src-url" rows="2" class="rx-input" placeholder="URL de FamilySearch / catálogo / imagen digital / ubicación del archivo"></textarea><textarea id="src-transcription" rows="3" class="rx-input" placeholder="Transcripción literal (respetá la grafía original; indicá [ilegible] si corresponde)"></textarea><textarea id="src-notes" rows="3" class="rx-input" placeholder="Resumen: qué información aporta, discrepancias, hipótesis y observaciones. Separá lo que dice el documento de tu interpretación."></textarea>
+              <div class="flex flex-wrap items-center justify-between gap-2"><select id="src-certainty" class="rx-input max-w-xs"><option value="documentado">Transcripción / dato explícito en la fuente</option><option value="probable">Interpretación / inferencia</option><option value="investigacion">Pendiente de verificar</option></select><button onclick="addResearchSource()" class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-xs font-bold"><i class="fa-solid fa-plus mr-1"></i> Agregar fuente</button></div><div id="research-sources" class="space-y-2"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3"><h3 class="font-bold">Relaciones y parejas</h3><p class="text-xs text-slate-500">Relaciones estructuradas, sin depender del cónyuge escrito como texto libre.</p><select id="union-person" class="rx-input"></select><div class="grid grid-cols-2 gap-2"><input id="union-date" class="rx-input" placeholder="Fecha / año"><input id="union-place" class="rx-input" placeholder="Lugar"></div><select id="union-type" class="rx-input"><option>Matrimonio</option><option>Pareja / unión</option><option>Unión no formalizada</option><option>Separación / divorcio</option></select><button onclick="addUnion()" class="rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 px-3 py-2 text-xs font-bold">Vincular pareja</button><div id="research-unions" class="space-y-2"></div></div>
+              <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3"><h3 class="font-bold">Acontecimientos y línea de tiempo</h3><p class="text-xs text-slate-500">Nacimientos, viajes, cambios de residencia, matrimonios, defunciones y hechos relevantes.</p><input id="event-title" class="rx-input" placeholder="Acontecimiento"><div class="grid grid-cols-2 gap-2"><input id="event-date" class="rx-input" placeholder="Fecha / año"><input id="event-place" class="rx-input" placeholder="Lugar / localidad"><input id="event-origin" class="rx-input" placeholder="Origen (migración)"><input id="event-destination" class="rx-input" placeholder="Destino (migración)"></div><select id="event-type" class="rx-input"><option>Residencia</option><option>Migración</option><option>Nacimiento</option><option>Matrimonio</option><option>Defunción</option><option>Trabajo / profesión</option><option>Otro</option></select><textarea id="event-notes" rows="2" class="rx-input" placeholder="Detalle y referencia documental"></textarea><button onclick="addTimelineEvent()" class="rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 px-3 py-2 text-xs font-bold">Agregar acontecimiento</button></div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-4"><div class="flex items-center justify-between"><h3 class="font-bold">Cronología familiar</h3><span class="text-xs text-slate-400">Ordenada por fecha ingresada</span></div><div id="research-timeline" class="mt-3 space-y-2"></div></div>
+          </div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-4"><h3 class="font-bold">Control de calidad de la genealogía</h3><p class="text-xs text-slate-500 mt-1">Detecta posibles duplicados, referencias rotas, IDs repetidos y ciclos imposibles de filiación. Revisá las sugerencias antes de modificar datos.</p><button onclick="runGenealogyAudit()" class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold"><i class="fa-solid fa-stethoscope mr-1"></i> Analizar árbol</button><div id="research-audit" class="mt-3 space-y-2"></div></div>
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4"><h3 class="font-bold text-indigo-900">Mapa de migraciones</h3><p class="text-xs text-indigo-800 mt-1">Vista de trayectorias basada en los lugares y eventos que cargues. Esta versión organiza origen, destino, fechas y personas; no inventa coordenadas ni ubicaciones que no estén documentadas.</p><div id="migration-overview" class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2"></div></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: AGREGAR / EDITAR PERSONA                         -->
+  <!-- ======================================================== -->
+  <div id="personModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+            <i class="fa-solid fa-user-pen"></i>
+          </div>
+          <div>
+            <h3 id="modal-person-title" class="font-serif font-bold text-slate-900 text-base">Nueva Persona</h3>
+            <p class="text-xs text-slate-500">Registra vínculos familiares y datos notariales</p>
+          </div>
+        </div>
+        <button onclick="closeModal('personModal')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Formulario) -->
+      <form id="person-form" onsubmit="handleSavePerson(event)" class="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar text-xs">
+        <input type="hidden" id="form-edit-id" value="">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block font-semibold text-slate-700 mb-1">Nombre Completo *</label>
+            <input type="text" id="form-name" required placeholder="Ej. Carlos Juan Ponce" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Sexo *</label>
+            <select id="form-gender" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs">
+              <option value="M">Masculino (♂)</option>
+              <option value="F">Femenino (♀)</option>
+              <option value="O">Otro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha Nacimiento / Año</label>
+            <input type="text" id="form-birth-date" placeholder="Ej. 18/05/1931 o ~1891" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Lugar de Nacimiento</label>
+            <input type="text" id="form-birth-place" placeholder="Ej. Villa Mercedes, San Luis" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Defunción / Fecha</label>
+            <input type="text" id="form-death-date" placeholder="Ej. 02/01/1990 o † antes de 1931" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs">
+          </div>
+        </div>
+
+        <!-- Filiación con desplegables dinámicos -->
+        <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-100 space-y-3">
+          <div class="text-[11px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-diagram-project text-indigo-600"></i> Filiación y Rama Familiar
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Padre</label>
+              <select id="form-father-id" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                <option value="">-- Ninguno / Desconocido --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Madre</label>
+              <select id="form-mother-id" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                <option value="">-- Ninguna / Desconocida --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Rama</label>
+              <select id="form-branch" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                <option value="paterna">Rama Paterna (Azul)</option>
+                <option value="materna">Rama Materna (Rosa)</option>
+                <option value="general">Línea Principal / General</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cónyuge y Ocupación -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Cónyuge / Pareja (Texto o Nombre)</label>
+            <input type="text" id="form-spouse" placeholder="Ej. Hilda Gladys Rosales" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Profesión / Ocupación</label>
+            <input type="text" id="form-job" placeholder="Ej. Propietario / Jornalero" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+          </div>
+        </div>
+
+        <!-- Notas registrales / expediente -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Notas de Actas Notariales / Folios / Testigos</label>
+          <textarea id="form-notes" rows="3" placeholder="Ej. Acta N° 4 de 1955, Dpto. General Pedernera. Compareció Carlos Juan Ponce a los 24 años..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs"></textarea>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('personModal')" class="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Persona
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: IMPORTAR / EXPORTAR (CSV & JSON)                 -->
+  <!-- ======================================================== -->
+  <div id="importExportModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden animate-in fade-in duration-200">
+      
+      <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-csv text-indigo-600 text-lg"></i>
+          <h3 class="font-serif font-bold text-slate-900 text-base">Importar / Exportar Datos</h3>
+        </div>
+        <button onclick="closeModal('importExportModal')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs text-slate-700">
+        <div>
+          <label class="block font-semibold mb-1">Copiar o Pegar datos (formato JSON estructurado o CSV)</label>
+          <textarea id="import-export-textarea" rows="8" placeholder="Pega aquí tu lista o exporta la actual..." class="w-full font-mono text-[11px] p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="generateExport('json')" class="p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-700 font-semibold flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-code"></i> Generar JSON
+          </button>
+          <button onclick="generateExport('csv')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-file-csv"></i> Generar CSV (Excel)
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <button onclick="copyToClipboardTextarea()" class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium transition flex items-center gap-1">
+            <i class="fa-regular fa-copy"></i> Copiar Texto
+          </button>
+          <button onclick="importFromTextarea()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs transition flex items-center gap-1.5">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Cargar al Árbol
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- DRAWER LATERAL: EXPEDIENTE NOTARIAL DETALLADO           -->
+  <!-- ======================================================== -->
+  <div id="details-backdrop" onclick="closePersonDetails()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity duration-300"></div>
+
+  <aside id="details-drawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-slate-200">
+    <!-- Header Drawer -->
+    <div class="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-folder-open text-indigo-600"></i>
+        <h3 class="font-serif font-bold text-slate-900 text-base">Ficha Registral Individual</h3>
+      </div>
+      <button onclick="closePersonDetails()" class="w-8 h-8 rounded-full bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 transition">
+        <i class="fa-solid fa-xmark text-sm"></i>
+      </button>
+    </div>
+
+    <!-- Contenido Drawer Dinámico -->
+    <div id="drawer-body" class="p-5 flex-1 overflow-y-auto space-y-4 custom-scrollbar text-xs">
+      <!-- Se llena por JavaScript -->
+    </div>
+
+    <!-- Footer Drawer -->
+    <div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center text-xs">
+      <button id="drawer-edit-btn" onclick="" class="px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold transition flex items-center gap-1">
+        <i class="fa-solid fa-pencil"></i> Editar Datos
+      </button>
+      <button onclick="closePersonDetails()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white font-medium hover:bg-slate-900 transition">
+        Cerrar Ficha
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================================================== -->
+  <!-- NOTIFICACIÓN TIPO TOAST                                  -->
+  <!-- ======================================================== -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-xs">
+    <i id="toast-icon" class="fa-solid fa-check text-emerald-400"></i>
+    <span id="toast-message">Operación exitosa</span>
+  </div>
+
+  <!-- SCRIPT PRINCIPAL DE LÓGICA GENEALÓGICA Y REACTIVIDAD -->
+  <script>
+    // ESTADO GLOBAL DE PERSONAS
+    let people = [];
+    let currentScale = 1;
+    let collapsedNodes = new Set();
+    let currentSearchTerm = '';
+    let currentBranchFilter = 'all';
+
+    // DATOS DE EJEMPLO: LINAJE FAMILIAS PONCE - ROSALES
+    const INITIAL_PONCE_ROSALES = [
+      {
+        id: "juan_oscar",
+        name: "Juan Oscar Ponce",
+        gender: "M",
+        birthDate: "02/05/1955",
+        birthPlace: "Villa Mercedes, San Luis",
+        deathDate: "",
+        fatherId: "carlos_juan_hijo",
+        motherId: "elba_reynoso",
+        spouse: "Hilda Gladys Rosales",
+        job: "Vecino de San Luis",
+        branch: "general",
+        notes: "Acta de Nacimiento N° 4, Folio 4, Tomo 100 de 1955. Maternidad de Villa Mercedes. Testigos: Benito Soria (42 a.) y Néstor Pallero (47 a.). Casado con Hilda Gladys Rosales (1980)."
+      },
+      {
+        id: "hilda_gladys",
+        name: "Hilda Gladys Rosales",
+        gender: "F",
+        birthDate: "11/10/1959",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "jose_eligio",
+        motherId: "maria_sara",
+        spouse: "Juan Oscar Ponce",
+        job: "Vecina de San Martín",
+        branch: "general",
+        notes: "Acta de Nacimiento N° 11, Folio 11, Tomo 37 de 1959. San Martín. Presenta nota marginal de matrimonio con Juan Oscar Ponce el 13/10/1980 (Acta 8, Folio 94)."
+      },
+      // Rama Paterna (Ponce)
+      {
+        id: "carlos_juan_hijo",
+        name: "Carlos Juan Ponce (hijo)",
+        gender: "M",
+        birthDate: "18/05/1931",
+        birthPlace: "El Retiro, San Martín, San Luis",
+        deathDate: "",
+        fatherId: "carlos_juan_padre",
+        motherId: "ernestina_barzola",
+        spouse: "Elba Nelly Reynoso",
+        job: "Empleado / Propietario",
+        branch: "paterna",
+        notes: "Acta de Nacimiento N° 32, Folio 155, Tomo 20 de 1931. Declarado con 24 años al nacer Juan Oscar en mayo de 1955."
+      },
+      {
+        id: "elba_reynoso",
+        name: "Elba / Elva Nelly Reynoso",
+        gender: "F",
+        birthDate: "20/12/1937",
+        birthPlace: "Villa Mercedes, San Luis",
+        deathDate: "",
+        fatherId: "estanislao_reinoso",
+        motherId: "paula_aguero",
+        spouse: "Carlos Juan Ponce (hijo)",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Acta N° 635 de 1937, Folio 71, Tomo 156. Calle Votti. Declarada con 17 años al nacer su hijo en mayo de 1955."
+      },
+      {
+        id: "carlos_juan_padre",
+        name: "Carlos Juan Ponce (padre)",
+        gender: "M",
+        birthDate: "~1891",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "dionisio_ponce",
+        motherId: "ventura_diaz_ponce",
+        spouse: "Ernestina Barzola",
+        job: "Propietario",
+        branch: "paterna",
+        notes: "Declaró 40 años en agosto de 1931 en el acta de su hijo. Domiciliado en El Retiro."
+      },
+      {
+        id: "ernestina_barzola",
+        name: "Ernestina Barzola",
+        gender: "F",
+        birthDate: "26/02/1900",
+        birthPlace: "Estancia Alta, San Martín",
+        deathDate: "",
+        fatherId: "juan_barzola",
+        motherId: "ventura_diaz_barzola",
+        spouse: "Carlos Juan Ponce (padre)",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Acta N° 82 de 1900, Folio 5, Tomo 3. Existencia comprobada por certificado del Juez de Paz."
+      },
+      {
+        id: "dionisio_ponce",
+        name: "Dionisio Ponce",
+        gender: "M",
+        birthDate: "~1860",
+        birthPlace: "San Luis",
+        deathDate: "† antes de agosto de 1931",
+        fatherId: "",
+        motherId: "",
+        spouse: "Ventura Díaz",
+        job: "Hacendado",
+        branch: "paterna",
+        notes: "Consta explícitamente como 'ya fallecido' en el acta N° 32 de 1931 de su nieto."
+      },
+      {
+        id: "ventura_diaz_ponce",
+        name: "Ventura Díaz (de Ponce)",
+        gender: "F",
+        birthDate: "~1865",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Dionisio Ponce",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Abuela paterna legítima declarada en acta de Carlos Juan Ponce hijo."
+      },
+      {
+        id: "juan_barzola",
+        name: "Juan Barzola",
+        gender: "M",
+        birthDate: "~1864",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "julian_barzola",
+        motherId: "victoria_lucero",
+        spouse: "Ventura Díaz",
+        job: "Vecino de Estancia Alta",
+        branch: "paterna",
+        notes: "Declaró 36 años en julio de 1900. No sabía firmar; firmó a su ruego J. Fernández Ortiz."
+      },
+      {
+        id: "ventura_diaz_barzola",
+        name: "Ventura Díaz (de Barzola)",
+        gender: "F",
+        birthDate: "~1860",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "jose_diaz",
+        motherId: "niestasa_castillo",
+        spouse: "Juan Barzola",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Declarada de 40 años en 1900 al nacer Ernestina Barzola."
+      },
+      {
+        id: "julian_barzola",
+        name: "Julián Barzola",
+        gender: "M",
+        birthDate: "~1835-1840",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Victoria Lucero",
+        job: "Poblador",
+        branch: "paterna",
+        notes: "Bisabuelo consignado en Acta N° 82 de 1900."
+      },
+      {
+        id: "victoria_lucero",
+        name: "Victoria Lucero",
+        gender: "F",
+        birthDate: "~1840",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Julián Barzola",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Bisabuela consignada en Acta N° 82 de 1900."
+      },
+      {
+        id: "jose_diaz",
+        name: "José Díaz",
+        gender: "M",
+        birthDate: "~1835",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Niestasa Castillo",
+        job: "Poblador",
+        branch: "paterna",
+        notes: "Bisabuelo materno de Ernestina Barzola según acta de 1900."
+      },
+      {
+        id: "niestasa_castillo",
+        name: "Niestasa Castillo",
+        gender: "F",
+        birthDate: "~1838",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "José Díaz",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Bisabuela consignada en Acta N° 82 de 1900."
+      },
+      {
+        id: "estanislao_reinoso",
+        name: "Estanislao Reinoso / Reynoso",
+        gender: "M",
+        birthDate: "07/05/1902",
+        birthPlace: "Villa Mercedes, San Luis",
+        deathDate: "",
+        fatherId: "silvano_reynoso",
+        motherId: "eusebia_esquivel",
+        spouse: "Paula Agüero",
+        job: "Jornalero",
+        branch: "paterna",
+        notes: "Acta N° 305 de 1902, Folio 36, Tomo 12. Calle Ayacucho. Declaró 34 años en 1937."
+      },
+      {
+        id: "paula_aguero",
+        name: "Paula Agüero",
+        gender: "F",
+        birthDate: "~1910",
+        birthPlace: "Villa Mercedes, San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Estanislao Reinoso",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Madre de Elva Nelly Reynoso reconocida en la inscripción de Juan Oscar Ponce (1955)."
+      },
+      {
+        id: "silvano_reynoso",
+        name: "Silvano Reynoso",
+        gender: "M",
+        birthDate: "~1868",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "santos_reynoso",
+        motherId: "",
+        spouse: "Eusebia Esquivel",
+        job: "Vecino de Mercedes",
+        branch: "paterna",
+        notes: "Declaró 34 años en julio de 1902 al nacer Estanislao."
+      },
+      {
+        id: "eusebia_esquivel",
+        name: "Eusebia Esquivel",
+        gender: "F",
+        birthDate: "~1875",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "manuel_esquibel",
+        motherId: "seferata_garraza",
+        spouse: "Silvano Reynoso",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Declaró 27 años en 1902. No sabía firmar; firmó a ruego Estanislao Domínguez."
+      },
+      {
+        id: "santos_reynoso",
+        name: "Santos Reynoso",
+        gender: "M",
+        birthDate: "~1840",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "",
+        job: "Poblador",
+        branch: "paterna",
+        notes: "Padre de Silvano Reynoso según consta en acta de 1902."
+      },
+      {
+        id: "manuel_esquibel",
+        name: "Manuel Esquibel",
+        gender: "M",
+        birthDate: "~1845",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Seferata Garraza",
+        job: "Poblador",
+        branch: "paterna",
+        notes: "Padre de Eusebia Esquivel según Acta N° 305 de 1902."
+      },
+      {
+        id: "seferata_garraza",
+        name: "Seferata Garraza",
+        gender: "F",
+        birthDate: "~1848",
+        birthPlace: "San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Manuel Esquibel",
+        job: "Labores",
+        branch: "paterna",
+        notes: "Madre de Eusebia Esquivel según Acta N° 305 de 1902."
+      },
+      // Rama Materna (Rosales / Fernández)
+      {
+        id: "jose_eligio",
+        name: "José Eligio Rosales",
+        gender: "M",
+        birthDate: "27/04/1915",
+        birthPlace: "El Manantial, San Martín",
+        deathDate: "02/01/1990 (74 años)",
+        fatherId: "jose_ramon",
+        motherId: "maria_carmen_morales",
+        spouse: "María Sara Fernández",
+        job: "Jubilado",
+        branch: "materna",
+        notes: "Nac.: Acta 22 de 1915. Def.: Acta 1 de 1990 (Hosp. Santo Tomás, paro cardiorrespiratorio)."
+      },
+      {
+        id: "maria_sara",
+        name: "María Sara Fernández",
+        gender: "F",
+        birthDate: "24/03/1928",
+        birthPlace: "Alto Grande, San Martín",
+        deathDate: "",
+        fatherId: "ildefonso_fernandez",
+        motherId: "juana_coria",
+        spouse: "José Eligio Rosales",
+        job: "Labores",
+        branch: "materna",
+        notes: "Acta de Nacimiento N° 16 de 1928, Folio 39, Tomo 21. Declarada con 31 años en acta de 1959."
+      },
+      {
+        id: "jose_ramon",
+        name: "José Ramón Rosales",
+        gender: "M",
+        birthDate: "~1882",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "fernando_rosales",
+        motherId: "victorina_gonzalez",
+        spouse: "María Carmen Morales",
+        job: "Agricultor / Propietario",
+        branch: "materna",
+        notes: "Declaró 33 años en 1915. Domiciliado en paraje El Manantial."
+      },
+      {
+        id: "maria_carmen_morales",
+        name: "María Carmen Morales",
+        gender: "F",
+        birthDate: "~1876",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "candelaria_morales",
+        spouse: "José Ramón Rosales",
+        job: "Labores",
+        branch: "materna",
+        notes: "Declarada de 39 años en 1915. Hija legítima de Candelaria Morales."
+      },
+      {
+        id: "fernando_rosales",
+        name: "Fernando Rosales",
+        gender: "M",
+        birthDate: "~1850",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "† antes de agosto de 1915",
+        fatherId: "",
+        motherId: "",
+        spouse: "Victorina González",
+        job: "Hacendado",
+        branch: "materna",
+        notes: "Declarado ya fallecido en el acta de nacimiento de su nieto José Eligio en 1915."
+      },
+      {
+        id: "victorina_gonzalez",
+        name: "Victorina González",
+        gender: "F",
+        birthDate: "~1855",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Fernando Rosales",
+        job: "Labores",
+        branch: "materna",
+        notes: "Abuela paterna consignada en Acta N° 22 de 1915."
+      },
+      {
+        id: "candelaria_morales",
+        name: "Candelaria Morales",
+        gender: "F",
+        birthDate: "~1855",
+        birthPlace: "San Martín, San Luis",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "",
+        job: "Labores",
+        branch: "materna",
+        notes: "Madre de María Carmen Morales consignada en Acta N° 22 de 1915."
+      },
+      {
+        id: "ildefonso_fernandez",
+        name: "Ildefonso Fernández",
+        gender: "M",
+        birthDate: "~1893",
+        birthPlace: "Alto Grande, San Martín",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Juana Coria",
+        job: "Propietario",
+        branch: "materna",
+        notes: "Declarado de 35 años en marzo de 1928 en el acta de su hija María Sara."
+      },
+      {
+        id: "juana_coria",
+        name: "Juana Coria",
+        gender: "F",
+        birthDate: "~1900",
+        birthPlace: "Alto Grande, San Martín",
+        deathDate: "",
+        fatherId: "",
+        motherId: "",
+        spouse: "Ildefonso Fernández",
+        job: "Labores",
+        branch: "materna",
+        notes: "Declarada de 28 años en 1928 al nacer María Sara Fernández."
+      }
+    ];
+
+    // INICIALIZACIÓN
+    window.addEventListener('DOMContentLoaded', () => {
+      // Cargar desde LocalStorage si existe, o usar datos por defecto
+      const saved = localStorage.getItem('genea_tree_people_data');
+      if (saved) {
+        try {
+          people = JSON.parse(saved);
+        } catch(e) {
+          people = [...INITIAL_PONCE_ROSALES];
+        }
+      } else {
+        people = [...INITIAL_PONCE_ROSALES];
+      }
+      
+      updateAppViews();
+    });
+
+    // GUARDAR EN STORAGE LOCAL
+    function saveStorage() {
+      localStorage.setItem('genea_tree_people_data', JSON.stringify(people));
+      updateAppViews();
+    }
+
+    // ACTUALIZAR TODAS LAS VISTAS
+    function updateAppViews() {
+      document.getElementById('badge-people-count').innerText = people.length;
+      renderSheetTable();
+      renderTreeView();
+      populateParentSelects();
+    }
+
+    // CONMUTADOR DE PESTAÑAS
+    function switchTab(tab) {
+      const viewTree = document.getElementById('view-tree');
+      const viewSheet = document.getElementById('view-sheet');
+      const btnTree = document.getElementById('tab-btn-tree');
+      const btnSheet = document.getElementById('tab-btn-sheet');
+
+      if (tab === 'tree') {
+        viewTree.classList.remove('hidden');
+        viewSheet.classList.add('hidden');
+        btnTree.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-xs transition";
+        btnSheet.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+        renderTreeView();
+      } else {
+        viewTree.classList.add('hidden');
+        viewSheet.classList.remove('hidden');
+        btnSheet.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-xs transition";
+        btnTree.className = "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+        renderSheetTable();
+      }
+    }
+
+    // ==========================================
+    // RENDERIZADOR DEL ÁRBOL JERÁRQUICO
+    // ==========================================
+    function renderTreeView() {
+      const container = document.getElementById('tree-container');
+      if (!people || people.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-20 px-4 max-w-md mx-auto">
+            <div class="w-16 h-16 mx-auto mb-4 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-2xl flex items-center justify-center text-2xl">
+              <i class="fa-solid fa-tree"></i>
+            </div>
+            <h3 class="font-serif font-bold text-slate-800 text-lg">No hay familiares cargados</h3>
+            <p class="text-xs text-slate-500 mt-1 mb-4">Comienza añadiendo una persona o carga la familia de ejemplo.</p>
+            <div class="flex flex-wrap justify-center gap-2">
+              <button onclick="openAddPersonModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold">
+                <i class="fa-solid fa-user-plus mr-1"></i> Agregar Persona
+              </button>
+              <button onclick="loadExampleData()" class="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1 text-indigo-600"></i> Cargar Ejemplo
+              </button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      // Encontrar raíces del árbol (personas que no tienen hijos registrados en este dataset)
+      const allParentIds = new Set();
+      people.forEach(p => {
+        if (p.fatherId) allParentIds.add(p.fatherId);
+        if (p.motherId) allParentIds.add(p.motherId);
+      });
+
+      // Las raíces para visualización ascendente son quienes no son padres de nadie (la generación más reciente)
+      let roots = people.filter(p => !allParentIds.has(p.id));
+      
+      // Si todos son padres (ciclo o datos atípicos), tomar el primero
+      if (roots.length === 0) roots = [people[0]];
+
+      // Aplicar filtro de búsqueda o rama si corresponde
+      let filteredRoots = roots;
+      if (currentBranchFilter !== 'all') {
+        filteredRoots = roots.filter(r => r.branch === currentBranchFilter);
+        if (filteredRoots.length === 0) filteredRoots = roots;
+      }
+
+      let html = '<ul>';
+      filteredRoots.forEach(root => {
+        html += renderNodeRecursive(root);
+      });
+      html += '</ul>';
+
+      container.innerHTML = html;
+    }
+
+    // Generar nodo y sus ascendientes (padres)
+    function renderNodeRecursive(person) {
+      if (!person) return '';
+
+      const isCollapsed = collapsedNodes.has(person.id);
+      
+      // Buscar padres
+      const father = person.fatherId ? people.find(p => p.id === person.fatherId) : null;
+      const mother = person.motherId ? people.find(p => p.id === person.motherId) : null;
+      const hasParents = father || mother;
+
+      // Estilo por género y rama
+      const genderBg = person.gender === 'F' ? 'bg-rose-50 border-rose-200' : person.gender === 'M' ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-200';
+      const genderBadge = person.gender === 'F' ? '<span class="text-rose-600 font-bold">♀</span>' : person.gender === 'M' ? '<span class="text-sky-600 font-bold">♂</span>' : '';
+      const branchBadge = person.branch === 'paterna' 
+        ? '<span class="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-blue-100 text-blue-800">Paterna</span>' 
+        : person.branch === 'materna' 
+        ? '<span class="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-pink-100 text-pink-800">Materna</span>'
+        : '';
+
+      const isMatch = currentSearchTerm && (
+        person.name.toLowerCase().includes(currentSearchTerm.toLowerCase()) ||
+        (person.birthPlace && person.birthPlace.toLowerCase().includes(currentSearchTerm.toLowerCase())) ||
+        (person.birthDate && person.birthDate.toLowerCase().includes(currentSearchTerm.toLowerCase()))
+      );
+
+      const highlightClass = isMatch ? 'ring-4 ring-amber-400 scale-105' : '';
+
+      let nodeHtml = `
+        <li>
+          <div class="relative inline-block text-left">
+            
+            <!-- TARJETA DE PERSONA -->
+            <div onclick="openPersonDetails('${person.id}')" class="cursor-pointer ${genderBg} ${highlightClass} hover:shadow-lg transition-all duration-200 rounded-xl border p-3 w-56 sm:w-60 shadow-xs relative group text-left">
+              
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <div class="flex items-center gap-1">
+                  ${genderBadge}
+                  ${branchBadge}
+                </div>
+                <i class="fa-solid fa-address-card text-slate-300 group-hover:text-indigo-600 text-xs transition"></i>
+              </div>
+
+              <div class="font-bold text-slate-900 text-xs sm:text-sm truncate" title="${person.name}">
+                ${person.name}
+              </div>
+
+              <div class="mt-1 text-[11px] text-slate-600 flex items-center gap-1.5">
+                <i class="fa-regular fa-calendar text-slate-400 text-[10px]"></i>
+                <span class="truncate">${person.birthDate || 'F. nac. no reg.'}</span>
+              </div>
+
+              ${person.birthPlace ? `
+              <div class="text-[10px] text-slate-500 flex items-center gap-1.5 truncate mt-0.5" title="${person.birthPlace}">
+                <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
+                <span class="truncate">${person.birthPlace}</span>
+              </div>` : ''}
+
+              ${person.deathDate ? `
+              <div class="text-[10px] text-slate-500 flex items-center gap-1.5 truncate mt-0.5">
+                <i class="fa-solid fa-cross text-slate-400 text-[9px]"></i>
+                <span class="truncate">${person.deathDate}</span>
+              </div>` : ''}
+
+              ${person.spouse ? `
+              <div class="mt-1 pt-1 border-t border-slate-200/60 text-[10px] text-indigo-700 font-medium truncate" title="Cónyuge: ${person.spouse}">
+                💍 ${person.spouse}
+              </div>` : ''}
+
+            </div>
+
+            <!-- BOTÓN DE COLAPSO / EXPANSIÓN DE ANCESTROS -->
+            ${hasParents ? `
+              <button onclick="toggleCollapse('${person.id}', event)" title="${isCollapsed ? 'Desplegar padres' : 'Ocultar padres'}" class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-slate-300 hover:border-indigo-500 shadow-md flex items-center justify-center text-slate-700 hover:text-indigo-700 text-xs font-bold z-10 transition">
+                <i class="fa-solid ${isCollapsed ? 'fa-plus' : 'fa-minus'} text-[9px]"></i>
+              </button>
+            ` : ''}
+
+          </div>
+      `;
+
+      // Renderizar ascendientes si no está colapsado
+      if (hasParents && !isCollapsed) {
+        nodeHtml += '<ul>';
+        if (father) {
+          nodeHtml += renderNodeRecursive(father);
+        } else if (mother) {
+          // Si solo hay madre, mantener balance
+          nodeHtml += `<li><div class="p-2 text-[10px] text-slate-400 border border-dashed rounded-lg bg-slate-50">Padre no registrado</div></li>`;
+        }
+
+        if (mother) {
+          nodeHtml += renderNodeRecursive(mother);
+        } else if (father) {
+          nodeHtml += `<li><div class="p-2 text-[10px] text-slate-400 border border-dashed rounded-lg bg-slate-50">Madre no registrada</div></li>`;
+        }
+        nodeHtml += '</ul>';
+      }
+
+      nodeHtml += '</li>';
+      return nodeHtml;
+    }
+
+    // Toggle de colapso por persona
+    function toggleCollapse(personId, event) {
+      if (event) event.stopPropagation();
+      if (collapsedNodes.has(personId)) {
+        collapsedNodes.delete(personId);
+      } else {
+        collapsedNodes.add(personId);
+      }
+      renderTreeView();
+    }
+
+    function expandAllNodes() {
+      collapsedNodes.clear();
+      renderTreeView();
+      showToast('Todas las ramas han sido desplegadas');
+    }
+
+    function collapseAllNodes() {
+      people.forEach(p => {
+        if (p.fatherId || p.motherId) {
+          collapsedNodes.add(p.id);
+        }
+      });
+      renderTreeView();
+      showToast('Todas las ramas ascendentes han sido colapsadas');
+    }
+
+    // ==========================================
+    // CONTROLES DE ZOOM Y BUSCADOR
+    // ==========================================
+    function zoomTree(delta) {
+      currentScale = Math.min(Math.max(0.4, currentScale + delta), 1.8);
+      document.getElementById('tree-container').style.transform = `scale(${currentScale})`;
+      document.getElementById('zoom-indicator').innerText = `${Math.round(currentScale * 100)}%`;
+    }
+
+    function resetZoom() {
+      currentScale = 1;
+      document.getElementById('tree-container').style.transform = `scale(1)`;
+      document.getElementById('zoom-indicator').innerText = `100%`;
+    }
+
+    function handleSearch(term) {
+      currentSearchTerm = term.trim();
+      renderTreeView();
+    }
+
+    function filterByBranch(branch) {
+      currentBranchFilter = branch;
+      renderTreeView();
+    }
+
+    // ==========================================
+    // RENDERIZADOR DE LA PLANILLA / EDITOR
+    // ==========================================
+    function renderSheetTable() {
+      const tbody = document.getElementById('sheet-table-body');
+      if (!tbody) return;
+
+      if (people.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" class="text-center py-10 text-slate-400">
+              No hay personas registradas en la planilla. Haz clic en "Nueva Fila / Persona".
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = people.map((p, idx) => {
+        const father = people.find(f => f.id === p.fatherId);
+        const mother = people.find(m => m.id === p.motherId);
+        const branchColor = p.branch === 'paterna' ? 'text-blue-700 bg-blue-50' : p.branch === 'materna' ? 'text-pink-700 bg-pink-50' : 'text-slate-600 bg-slate-100';
+
+        return `
+          <tr class="hover:bg-indigo-50/40 transition">
+            <td class="p-3 font-mono text-[11px] text-slate-400">${idx + 1}</td>
+            <td class="p-3 font-semibold text-slate-900 cursor-pointer hover:text-indigo-600 flex items-center gap-1.5" onclick="openPersonDetails('${p.id}')">
+              <span>${p.name}</span>
+            </td>
+            <td class="p-3">
+              <span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold ${p.gender === 'F' ? 'bg-rose-100 text-rose-800' : 'bg-sky-100 text-sky-800'}">
+                ${p.gender === 'F' ? 'Mujer' : 'Hombre'}
+              </span>
+            </td>
+            <td class="p-3">${p.birthDate || '—'}</td>
+            <td class="p-3 text-slate-600 truncate max-w-[140px]" title="${p.birthPlace || ''}">${p.birthPlace || '—'}</td>
+            <td class="p-3 text-slate-600">${p.deathDate || '—'}</td>
+            <td class="p-3 text-slate-700 font-medium">${father ? father.name : '<span class="text-slate-300">—</span>'}</td>
+            <td class="p-3 text-slate-700 font-medium">${mother ? mother.name : '<span class="text-slate-300">—</span>'}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${branchColor}">${p.branch}</span>
+            </td>
+            <td class="p-3 text-slate-500 max-w-[200px] truncate" title="${p.notes || ''}">${p.notes || '—'}</td>
+            <td class="p-3 text-right whitespace-nowrap">
+              <button onclick="editPerson('${p.id}')" title="Editar" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded transition">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+              <button onclick="deletePerson('${p.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-600 rounded transition ml-1">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // GESTIÓN DE PERSONAS: AGREGAR / EDITAR / BORRAR
+    // ==========================================
+    function populateParentSelects(currentFatherId = '', currentMotherId = '', excludeId = '') {
+      const fatherSelect = document.getElementById('form-father-id');
+      const motherSelect = document.getElementById('form-mother-id');
+
+      let fatherOptions = '<option value="">-- Ninguno / Desconocido --</option>';
+      let motherOptions = '<option value="">-- Ninguna / Desconocida --</option>';
+
+      people.forEach(p => {
+        if (p.id === excludeId) return; // Evitar ser su propio padre
+        
+        const isFSelected = p.id === currentFatherId ? 'selected' : '';
+        const isMSelected = p.id === currentMotherId ? 'selected' : '';
+
+        if (p.gender === 'M') {
+          fatherOptions += `<option value="${p.id}" ${isFSelected}>${p.name} (${p.birthDate || 'S/D'})</option>`;
+        } else if (p.gender === 'F') {
+          motherOptions += `<option value="${p.id}" ${isMSelected}>${p.name} (${p.birthDate || 'S/D'})</option>`;
+        } else {
+          // Ambos en caso de género indeterminado
+          fatherOptions += `<option value="${p.id}" ${isFSelected}>${p.name}</option>`;
+          motherOptions += `<option value="${p.id}" ${isMSelected}>${p.name}</option>`;
+        }
+      });
+
+      fatherSelect.innerHTML = fatherOptions;
+      motherSelect.innerHTML = motherOptions;
+    }
+
+    function openAddPersonModal() {
+      document.getElementById('form-edit-id').value = '';
+      document.getElementById('modal-person-title').innerText = 'Nueva Persona';
+      document.getElementById('person-form').reset();
+      populateParentSelects();
+      openModal('personModal');
+    }
+
+    function editPerson(id) {
+      const person = people.find(p => p.id === id);
+      if (!person) return;
+
+      document.getElementById('form-edit-id').value = person.id;
+      document.getElementById('modal-person-title').innerText = 'Editar Datos de ' + person.name;
+      
+      document.getElementById('form-name').value = person.name || '';
+      document.getElementById('form-gender').value = person.gender || 'M';
+      document.getElementById('form-birth-date').value = person.birthDate || '';
+      document.getElementById('form-birth-place').value = person.birthPlace || '';
+      document.getElementById('form-death-date').value = person.deathDate || '';
+      document.getElementById('form-spouse').value = person.spouse || '';
+      document.getElementById('form-job').value = person.job || '';
+      document.getElementById('form-branch').value = person.branch || 'general';
+      document.getElementById('form-notes').value = person.notes || '';
+
+      populateParentSelects(person.fatherId, person.motherId, person.id);
+      openModal('personModal');
+      closePersonDetails();
+    }
+
+    function handleSavePerson(e) {
+      e.preventDefault();
+
+      const editId = document.getElementById('form-edit-id').value;
+      const name = document.getElementById('form-name').value.trim();
+      const gender = document.getElementById('form-gender').value;
+      const birthDate = document.getElementById('form-birth-date').value.trim();
+      const birthPlace = document.getElementById('form-birth-place').value.trim();
+      const deathDate = document.getElementById('form-death-date').value.trim();
+      const fatherId = document.getElementById('form-father-id').value;
+      const motherId = document.getElementById('form-mother-id').value;
+      const spouse = document.getElementById('form-spouse').value.trim();
+      const job = document.getElementById('form-job').value.trim();
+      const branch = document.getElementById('form-branch').value;
+      const notes = document.getElementById('form-notes').value.trim();
+
+      if (editId) {
+        // Actualizar existente
+        const index = people.findIndex(p => p.id === editId);
+        if (index !== -1) {
+          people[index] = {
+            ...people[index],
+            name, gender, birthDate, birthPlace, deathDate, fatherId, motherId, spouse, job, branch, notes
+          };
+          showToast('Registro de ' + name + ' actualizado');
+        }
+      } else {
+        // Generar nuevo ID limpio
+        const newId = 'person_' + Date.now();
+        people.push({
+          id: newId,
+          name, gender, birthDate, birthPlace, deathDate, fatherId, motherId, spouse, job, branch, notes
+        });
+        showToast('Se agregó a ' + name + ' a la familia');
+      }
+
+      saveStorage();
+      closeModal('personModal');
+    }
+
+    function deletePerson(id) {
+      const person = people.find(p => p.id === id);
+      if (!person) return;
+
+      const confirmDel = window.confirm(`¿Estás seguro de que deseas eliminar a "${person.name}"? Los vínculos de sus hijos se desasociarán.`);
+      if (!confirmDel) return;
+
+      // Limpiar referencias en hijos
+      people.forEach(p => {
+        if (p.fatherId === id) p.fatherId = '';
+        if (p.motherId === id) p.motherId = '';
+      });
+
+      people = people.filter(p => p.id !== id);
+      if (typeof researchState !== 'undefined') { researchState.sources = researchState.sources.map(x=>({...x,personIds:(x.personIds||[x.personId]).filter(pid=>pid!==id)})).filter(x=>x.personIds.length>0);  researchState.events = researchState.events.filter(x => x.personId !== id); researchState.unions = researchState.unions.filter(x => x.person1 !== id && x.person2 !== id); saveResearchState(); if (selectedResearchPersonId === id) selectedResearchPersonId = ''; }
+      collapsedNodes.delete(id);
+      saveStorage();
+      showToast('Se eliminó a ' + person.name);
+    }
+
+    function confirmClearAll() {
+      const ok = window.confirm('¿Deseas vaciar todo el árbol para comenzar una nueva genealogía desde cero?');
+      if (ok) {
+        people = [];
+        collapsedNodes.clear();
+        saveStorage();
+        showToast('Se ha limpiado el árbol genealógico');
+      }
+    }
+
+    function loadExampleData() {
+      people = JSON.parse(JSON.stringify(INITIAL_PONCE_ROSALES));
+      collapsedNodes.clear();
+      saveStorage();
+      showToast('Se cargaron las 4 generaciones de la Familia Ponce - Rosales');
+    }
+
+    // ==========================================
+    // IMPORTACIÓN / EXPORTACIÓN (CSV & JSON)
+    // ==========================================
+    function generateExport(format) {
+      const textarea = document.getElementById('import-export-textarea');
+      if (format === 'json') {
+        textarea.value = JSON.stringify(people, null, 2);
+      } else if (format === 'csv') {
+        const headers = ["ID", "Nombre", "Sexo", "Nacimiento", "Lugar", "Defuncion", "ID_Padre", "ID_Madre", "Conyuge", "Profesion", "Rama", "Notas"];
+        const rows = people.map(p => [
+          p.id,
+          `"${(p.name || '').replace(/"/g, '""')}"`,
+          p.gender,
+          `"${(p.birthDate || '').replace(/"/g, '""')}"`,
+          `"${(p.birthPlace || '').replace(/"/g, '""')}"`,
+          `"${(p.deathDate || '').replace(/"/g, '""')}"`,
+          p.fatherId || '',
+          p.motherId || '',
+          `"${(p.spouse || '').replace(/"/g, '""')}"`,
+          `"${(p.job || '').replace(/"/g, '""')}"`,
+          p.branch || 'general',
+          `"${(p.notes || '').replace(/"/g, '""')}"`
+        ]);
+
+        textarea.value = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      }
+    }
+
+    function copyToClipboardTextarea() {
+      const textarea = document.getElementById('import-export-textarea');
+      textarea.select();
+      document.execCommand('copy');
+      showToast('Copiado al portapapeles');
+    }
+
+    function importFromTextarea() {
+      const text = document.getElementById('import-export-textarea').value.trim();
+      if (!text) {
+        showToast('El campo de texto está vacío', true);
+        return;
+      }
+
+      try {
+        if (text.startsWith('[') || text.startsWith('{')) {
+          // Es JSON
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            people = parsed;
+            saveStorage();
+            closeModal('importExportModal');
+            showToast('¡Datos JSON cargados exitosamente!');
+            return;
+          }
+        }
+
+        // Es CSV
+        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length > 1) {
+          const parsedPeople = [];
+          for (let i = 1; i < lines.length; i++) {
+            // Regex para separar comas respetando comillas
+            const cols = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+            if (cols.length >= 2) {
+              const clean = str => (str || '').replace(/^"|"$/g, '').trim();
+              parsedPeople.push({
+                id: clean(cols[0]) || 'p_' + Date.now() + '_' + i,
+                name: clean(cols[1]),
+                gender: clean(cols[2]) || 'M',
+                birthDate: clean(cols[3]),
+                birthPlace: clean(cols[4]),
+                deathDate: clean(cols[5]),
+                fatherId: clean(cols[6]),
+                motherId: clean(cols[7]),
+                spouse: clean(cols[8]),
+                job: clean(cols[9]),
+                branch: clean(cols[10]) || 'general',
+                notes: clean(cols[11])
+              });
+            }
+          }
+          if (parsedPeople.length > 0) {
+            people = parsedPeople;
+            saveStorage();
+            closeModal('importExportModal');
+            showToast('¡Planilla CSV importada correctamente!');
+            return;
+          }
+        }
+        showToast('Formato no reconocido. Verifica la estructura.', true);
+      } catch (err) {
+        showToast('Error al procesar: ' + err.message, true);
+      }
+    }
+
+    // ==========================================
+    // DRAWER: DETALLES Y FICHA REGISTRAL
+    // ==========================================
+    function openPersonDetails(id) {
+      const person = people.find(p => p.id === id);
+      if (!person) return;
+
+      const father = people.find(p => p.id === person.fatherId);
+      const mother = people.find(p => p.id === person.motherId);
+      
+      // Buscar hijos en el árbol
+      const children = people.filter(p => p.fatherId === person.id || p.motherId === person.id);
+
+      const drawerContent = `
+        <div class="space-y-4">
+          
+          <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider inline-block mb-1 ${person.gender === 'F' ? 'bg-rose-100 text-rose-800' : 'bg-sky-100 text-sky-800'}">
+              ${person.gender === 'F' ? 'Femenino ♀' : 'Masculino ♂'} • ${person.branch.toUpperCase()}
+            </span>
+            <h2 class="font-serif text-lg font-bold text-slate-900">${person.name}</h2>
+            ${person.job ? `<p class="text-xs text-indigo-700 font-medium mt-0.5">${person.job}</p>` : ''}
+          </div>
+
+          <!-- Datos Vitales -->
+          <div class="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2">
+            <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Datos Vitales</h4>
+            
+            <div class="flex items-start gap-2">
+              <i class="fa-solid fa-cake-candles text-amber-600 mt-0.5 w-4"></i>
+              <div>
+                <strong class="text-slate-700 block">Nacimiento:</strong>
+                <span class="text-slate-600">${person.birthDate || 'No consta fecha precisa'}</span>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2">
+              <i class="fa-solid fa-location-dot text-rose-600 mt-0.5 w-4"></i>
+              <div>
+                <strong class="text-slate-700 block">Lugar / Localidad:</strong>
+                <span class="text-slate-600">${person.birthPlace || 'Sin lugar registrado'}</span>
+              </div>
+            </div>
+
+            ${person.deathDate ? `
+            <div class="flex items-start gap-2 pt-1 border-t border-slate-100">
+              <i class="fa-solid fa-cross text-slate-500 mt-0.5 w-4"></i>
+              <div>
+                <strong class="text-slate-700 block">Defunción:</strong>
+                <span class="text-slate-600">${person.deathDate}</span>
+              </div>
+            </div>` : ''}
+
+            ${person.spouse ? `
+            <div class="flex items-start gap-2 pt-1 border-t border-slate-100">
+              <i class="fa-solid fa-ring text-amber-600 mt-0.5 w-4"></i>
+              <div>
+                <strong class="text-slate-700 block">Cónyuge:</strong>
+                <span class="text-slate-600">${person.spouse}</span>
+              </div>
+            </div>` : ''}
+          </div>
+
+          <!-- Filiación Directa -->
+          <div class="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2">
+            <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Filiación Documentada</h4>
+            
+            <div class="flex items-center justify-between text-xs py-1 border-b border-slate-50">
+              <span class="text-slate-500">Padre:</span>
+              <span class="font-semibold text-slate-800">${father ? `<a href="javascript:void(0)" onclick="openPersonDetails('${father.id}')" class="text-indigo-600 hover:underline">${father.name}</a>` : 'No registrado'}</span>
+            </div>
+
+            <div class="flex items-center justify-between text-xs py-1 border-b border-slate-50">
+              <span class="text-slate-500">Madre:</span>
+              <span class="font-semibold text-slate-800">${mother ? `<a href="javascript:void(0)" onclick="openPersonDetails('${mother.id}')" class="text-indigo-600 hover:underline">${mother.name}</a>` : 'No registrada'}</span>
+            </div>
+
+            <div class="pt-1 text-xs">
+              <span class="text-slate-500 block mb-1">Hijos/as en la base:</span>
+              ${children.length > 0 ? `
+                <div class="flex flex-wrap gap-1">
+                  ${children.map(c => `
+                    <button onclick="openPersonDetails('${c.id}')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-[11px] font-medium transition">
+                      ${c.name}
+                    </button>
+                  `).join('')}
+                </div>
+              ` : '<span class="text-slate-400 italic">No constan hijos registrados en este árbol</span>'}
+            </div>
+          </div>
+
+          <!-- Notas de Actas / Expediente -->
+          <div class="bg-amber-50/40 border border-amber-200/80 rounded-xl p-3.5 space-y-1.5">
+            <h4 class="text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+              <i class="fa-solid fa-file-lines text-amber-700"></i> Expediente Notarial y Referencias
+            </h4>
+            <p class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+              ${person.notes || 'No se han ingresado notas adicionales para esta persona.'}
+            </p>
+          </div>
+
+        </div>
+      `;
+
+      document.getElementById('drawer-body').innerHTML = drawerContent;
+      document.getElementById('drawer-edit-btn').setAttribute('onclick', `editPerson('${person.id}')`);
+      
+      const drawer = document.getElementById('details-drawer');
+      const backdrop = document.getElementById('details-backdrop');
+      
+      backdrop.classList.remove('hidden');
+      setTimeout(() => {
+        backdrop.classList.remove('opacity-0');
+        drawer.classList.remove('translate-x-full');
+      }, 10);
+    }
+
+    function closePersonDetails() {
+      const drawer = document.getElementById('details-drawer');
+      const backdrop = document.getElementById('details-backdrop');
+      
+      drawer.classList.add('translate-x-full');
+      backdrop.classList.add('opacity-0');
+      setTimeout(() => {
+        backdrop.classList.add('hidden');
+      }, 300);
+    }
+
+    // Modal Helpers
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    // Toast helper
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.innerText = msg;
+      toastIcon.className = isError ? "fa-solid fa-circle-exclamation text-rose-400" : "fa-solid fa-circle-check text-emerald-400";
+      
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+    // ===== CAPA DE INVESTIGACIÓN GENEALÓGICA (compatible con registros anteriores) =====
+    let researchState = { sources: [], unions: [], events: [] };
+    let selectedResearchPersonId = '';
+    const RX_KEY = 'genea_tree_research_v2';
+    function loadResearchState(){ try { const raw=localStorage.getItem(RX_KEY); if(raw) researchState={...researchState,...JSON.parse(raw)}; } catch(e){ console.warn('No se pudo leer el archivo de investigación',e); } }
+    function saveResearchState(){ localStorage.setItem(RX_KEY,JSON.stringify(researchState)); }
+    function escRx(v){ return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function personName(id){return people.find(p=>p.id===id)?.name || 'Persona no encontrada';}
+    function switchResearchTab(tab){ switchTab(tab); }
+    const originalSwitchTab = switchTab;
+    switchTab = function(tab){
+      const tree=document.getElementById('view-tree'), sheet=document.getElementById('view-sheet'), research=document.getElementById('view-research');
+      const bt=document.getElementById('tab-btn-tree'), bs=document.getElementById('tab-btn-sheet'), br=document.getElementById('tab-btn-research');
+      if(tab==='research'){
+        tree.classList.add('hidden');sheet.classList.add('hidden');research.classList.remove('hidden');
+        bt.className='flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+        bs.className='flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+        br.className='flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white text-indigo-700 shadow-xs transition';
+        renderResearch();
+      } else { research.classList.add('hidden'); originalSwitchTab(tab); br.className='flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition'; }
+    };
+    function renderResearch(){
+      loadResearchState();
+      const stat=(label,value)=>`<div class="bg-white border border-slate-200 rounded-xl p-3"><div class="text-xs text-slate-500">${label}</div><div class="text-2xl font-bold text-slate-900">${value}</div></div>`;
+      document.getElementById('research-stats').innerHTML=stat('Personas',people.length)+stat('Fuentes documentales',researchState.sources.length)+stat('Relaciones',researchState.unions.length)+stat('Acontecimientos',researchState.events.length);
+      if(!selectedResearchPersonId && people.length) selectedResearchPersonId=people[0].id;
+      renderResearchPeople(); renderResearchDetails(); renderTimeline(); renderMigrationOverview();
+    }
+    function renderResearchPeople(){
+      const q=(document.getElementById('research-person-search')?.value||'').toLowerCase();
+      const list=people.filter(p=>(p.name||'').toLowerCase().includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+      document.getElementById('research-people-list').innerHTML=list.map(p=>`<button class="rx-person ${p.id===selectedResearchPersonId?'active':''}" onclick="selectResearchPerson('${escRx(p.id)}')">${escRx(p.name)} <span class="text-slate-400">· ${escRx(p.branch||'sin rama')}</span></button>`).join('')||'<p class="text-xs text-slate-400 p-2">No hay coincidencias.</p>';
+    }
+    function selectResearchPerson(id){selectedResearchPersonId=id;renderResearchPeople();renderResearchDetails();}
+    function renderResearchDetails(){
+      const p=people.find(x=>x.id===selectedResearchPersonId), box=document.getElementById('research-person-form');
+      if(!p){box.classList.add('hidden');renderResearchSources();renderUnions();return;} box.classList.remove('hidden');
+      document.getElementById('research-person-title').textContent=p.name;
+      const d=p.research||{}; ['names','nationality','residence','photo','marriage','migration','bio','certainty'].forEach(k=>{const el=document.getElementById('rx-'+k);if(el)el.value=d[k]|| (k==='certainty'?'investigacion':'');}); previewResearchPhoto();
+      const sel=document.getElementById('union-person');sel.innerHTML='<option value="">Elegir pareja...</option>'+people.filter(x=>x.id!==p.id).map(x=>`<option value="${escRx(x.id)}">${escRx(x.name)}</option>`).join('');
+      const sourcePeople=document.getElementById('src-people');if(sourcePeople){sourcePeople.innerHTML=people.map(x=>`<option value="${escRx(x.id)}" ${x.id===p.id?'selected':''}>${escRx(x.name)}</option>`).join('');}
+      renderResearchSources();renderUnions();
+    }
+    function previewResearchPhoto(){const img=document.getElementById('rx-photo-preview');const url=document.getElementById('rx-photo').value.trim();if(/^https?:\/\//i.test(url)){img.src=url;img.classList.remove('hidden');}else{img.removeAttribute('src');img.classList.add('hidden');}}
+    function saveResearchPerson(){const p=people.find(x=>x.id===selectedResearchPersonId);if(!p)return;p.research={names:document.getElementById('rx-names').value,nationality:document.getElementById('rx-nationality').value,residence:document.getElementById('rx-residence').value,photo:document.getElementById('rx-photo').value,marriage:document.getElementById('rx-marriage').value,migration:document.getElementById('rx-migration').value,bio:document.getElementById('rx-bio').value,certainty:document.getElementById('rx-certainty').value};saveStorage();saveResearchState();renderResearch();showToast('Ficha ampliada guardada.');}
+    function addResearchSource(){
+      if(!selectedResearchPersonId){showToast('Seleccioná una persona primero.',true);return;}
+      const title=document.getElementById('src-title').value.trim();
+      if(!title){showToast('Ingresá al menos el título del documento.',true);return;}
+      const fields=['type','archive','collection','place','date','volume','folio','film','image','parish','officiant','godparents','role','census-year','household','head','relationship','age','birthplace','nationality','occupation','url','transcription','notes','certainty'];
+      const chosenPeople=Array.from(document.getElementById('src-people')?.selectedOptions||[]).map(o=>o.value);
+      if(!chosenPeople.length)chosenPeople.push(selectedResearchPersonId);
+      const source={id:'src_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),personId:chosenPeople[0],personIds:chosenPeople,title};
+      fields.forEach(k=>{const el=document.getElementById('src-'+k);if(el)source[k.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=el.value.trim();});
+      // Compatibilidad: mantener los nombres de campos históricos usados por versiones anteriores.
+      source.reference=[source.volume,source.folio].filter(Boolean).join(' · ');
+      researchState.sources.push(source);saveResearchState();
+      ['src-title',...fields.map(k=>'src-'+k)].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      renderResearch();showToast('Fuente documental agregada y guardada.');
+    }
+    function renderResearchSources(){
+      const rows=researchState.sources.filter(x=>(x.personIds||[x.personId]).includes(selectedResearchPersonId));
+      document.getElementById('source-count').textContent=rows.length+' fuentes';
+      document.getElementById('research-sources').innerHTML=rows.map(x=>{
+        const meta=[x.type,x.archive,x.collection,x.parish,x.place,x.date,x.volume&&('Libro/tomo: '+x.volume),x.folio&&('Folio/página: '+x.folio),x.film&&('DGS/microfilm: '+x.film),x.image&&('Imagen: '+x.image),x.censusYear&&('Censo: '+x.censusYear),x.household&&('Hogar: '+x.household),x.role&&('Rol: '+x.role)].filter(Boolean).map(escRx).join(' · ');
+        const census=[x.head&&('Jefe/a: '+x.head),x.relationship&&('Parentesco: '+x.relationship),x.age&&('Edad declarada: '+x.age),x.birthplace&&('Nacimiento declarado: '+x.birthplace),x.nationality&&('Nacionalidad: '+x.nationality),x.occupation&&('Ocupación: '+x.occupation)].filter(Boolean).map(escRx).join(' · ');
+        return `<div class="rx-card"><div class="flex justify-between gap-2"><strong class="text-xs">${escRx(x.title)}</strong><button onclick="removeResearchItem('sources','${escRx(x.id)}')" class="text-rose-500 text-xs">Eliminar</button></div><p class="text-[11px] text-slate-500 mt-1">${meta||escRx(x.reference||'Sin referencia archivística')}</p>${census?`<p class="text-[11px] text-slate-600 mt-1">${census}</p>`:''}${x.transcription?`<details class="mt-2"><summary class="cursor-pointer text-xs font-semibold">Ver transcripción</summary><p class="text-xs whitespace-pre-wrap mt-1">${escRx(x.transcription)}</p></details>`:''}<p class="text-xs mt-1 whitespace-pre-wrap">${escRx(x.notes||'')}</p><span class="rx-pill">${escRx(x.certainty||'investigacion')}</span>${x.url?` <a class="text-xs text-indigo-600 underline" target="_blank" rel="noopener noreferrer" href="${escRx(x.url)}">Abrir referencia digital</a>`:''}</div>`;
+      }).join('')||'<p class="text-xs text-slate-400">Todavía no hay fuentes asociadas a esta persona.</p>';
+    }
+    function addUnion(){const p2=document.getElementById('union-person').value;if(!selectedResearchPersonId||!p2){showToast('Seleccioná a la otra persona.',true);return;}if(researchState.unions.some(u=>u.person1===selectedResearchPersonId&&u.person2===p2||u.person1===p2&&u.person2===selectedResearchPersonId)){showToast('Esa relación ya está registrada.',true);return;}researchState.unions.push({id:'union_'+Date.now(),person1:selectedResearchPersonId,person2:p2,date:document.getElementById('union-date').value,place:document.getElementById('union-place').value,type:document.getElementById('union-type').value});saveResearchState();renderResearch();showToast('Relación registrada.');}
+    function renderUnions(){const rows=researchState.unions.filter(u=>u.person1===selectedResearchPersonId||u.person2===selectedResearchPersonId);document.getElementById('research-unions').innerHTML=rows.map(u=>`<div class="rx-card text-xs"><div class="flex justify-between"><strong>${escRx(personName(u.person1===selectedResearchPersonId?u.person2:u.person1))}</strong><button onclick="removeResearchItem('unions','${u.id}')" class="text-rose-500">×</button></div><p class="text-slate-500">${escRx(u.type)} · ${escRx(u.date)} · ${escRx(u.place)}</p></div>`).join('')||'<p class="text-xs text-slate-400">Sin relaciones estructuradas.</p>';}
+    function addTimelineEvent(){if(!selectedResearchPersonId){showToast('Seleccioná una persona.',true);return;}const title=document.getElementById('event-title').value.trim();if(!title){showToast('Ingresá el acontecimiento.',true);return;}researchState.events.push({id:'event_'+Date.now(),personId:selectedResearchPersonId,title,date:document.getElementById('event-date').value,place:document.getElementById('event-place').value,origin:document.getElementById('event-origin').value,destination:document.getElementById('event-destination').value,type:document.getElementById('event-type').value,notes:document.getElementById('event-notes').value});saveResearchState();['event-title','event-date','event-place','event-origin','event-destination','event-notes'].forEach(id=>document.getElementById(id).value='');renderResearch();showToast('Acontecimiento agregado.');}
+    function renderTimeline(){const rows=researchState.events.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));document.getElementById('research-timeline').innerHTML=rows.map(e=>`<div class="flex gap-3 items-start border-l-2 border-indigo-200 pl-3 py-1"><div class="min-w-20 text-xs font-bold text-indigo-700">${escRx(e.date||'S/F')}</div><div class="flex-1"><strong class="text-xs">${escRx(e.title)}</strong><p class="text-[11px] text-slate-500">${escRx(personName(e.personId))} · ${escRx(e.place)} · ${escRx(e.type)}</p><p class="text-xs">${escRx(e.notes)}</p></div><button onclick="removeResearchItem('events','${e.id}')" class="text-rose-500 text-xs">×</button></div>`).join('')||'<p class="text-xs text-slate-400">Todavía no hay acontecimientos. Agregá hechos en la ficha de una persona.</p>';}
+    function renderMigrationOverview(){const rows=researchState.events.filter(e=>/migraci|residencia/i.test(e.type+' '+e.title));document.getElementById('migration-overview').innerHTML=rows.map(e=>{const route=[e.origin,e.destination].filter(Boolean);const mapUrl=route.length===2?'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(e.origin)+'&destination='+encodeURIComponent(e.destination):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e.place||e.destination||e.origin||'');return `<div class="rx-card"><div class="text-xs font-bold">${escRx(personName(e.personId))}</div><div class="text-xs text-slate-600 font-semibold mt-1">${escRx(e.origin||e.place||'Origen no indicado')} ${e.destination?' → '+escRx(e.destination):''}</div><div class="text-[11px] text-slate-500">${escRx(e.date)} · ${escRx(e.title)} ${escRx(e.notes)}</div><a class="inline-block mt-2 text-xs text-indigo-600 underline" target="_blank" rel="noopener" href="${mapUrl}">Ver recorrido en Google Maps</a></div>`;}).join('')||'<p class="text-xs text-indigo-700">Aún no hay migraciones cargadas. Registrá un acontecimiento de tipo “Migración” y completá origen y destino.</p>'; }
+    function removeResearchItem(type,id){if(!confirm('¿Eliminar este registro?'))return;researchState[type]=researchState[type].filter(x=>x.id!==id);saveResearchState();renderResearch();}
+    function downloadFullBackup(){const payload={app:'GeneaTree Pro',version:2,exportedAt:new Date().toISOString(),people,research:researchState};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download='geneatree-respaldo-completo-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+    function restoreFullBackup(ev){const file=ev.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);const imported=Array.isArray(data)?data:data.people;if(!Array.isArray(imported))throw new Error('El archivo no contiene una lista de personas.');if(!confirm('Esto reemplazará los datos actuales de personas e investigación. ¿Continuar?'))return;const ids=new Set();for(const p of imported){if(!p.id||!p.name||ids.has(p.id))throw new Error('Hay personas sin ID/nombre o IDs duplicados.');ids.add(p.id);}people=imported;researchState=data.research||{sources:[],unions:[],events:[]};saveStorage();saveResearchState();renderResearch();showToast('Respaldo restaurado correctamente.');}catch(e){showToast('No se pudo restaurar: '+e.message,true);}ev.target.value='';};reader.readAsText(file);}
+    function runGenealogyAudit(){const issues=[],ids=new Set();for(const p of people){if(ids.has(p.id))issues.push('ID duplicado: '+p.id);ids.add(p.id);for(const key of ['fatherId','motherId'])if(p[key]&&!people.some(x=>x.id===p[key]))issues.push(`${p.name}: ${key==='fatherId'?'padre':'madre'} apunta a un ID inexistente (${p[key]}).`);if(p.fatherId===p.id||p.motherId===p.id)issues.push(p.name+': se asignó a sí mismo como progenitor.');if(p.fatherId&&p.fatherId===p.motherId)issues.push(p.name+': padre y madre tienen el mismo ID.');}
+      for(let i=0;i<people.length;i++)for(let j=i+1;j<people.length;j++){const a=people[i],b=people[j];const norm=x=>(x.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');if(norm(a)===norm(b))issues.push(`Posible duplicado: ${a.name} (${a.id}) y ${b.name} (${b.id}). Revisar antes de fusionar.`);}
+      function hasCycle(start){const path=new Set();function visit(id){if(path.has(id))return true;const p=people.find(x=>x.id===id);if(!p)return false;path.add(id);const found=(p.fatherId&&visit(p.fatherId))||(p.motherId&&visit(p.motherId));path.delete(id);return !!found;}return visit(start);}
+      people.forEach(p=>{if(hasCycle(p.id))issues.push('Posible ciclo de filiación que involucra a '+p.name+'.');});
+      document.getElementById('research-audit').innerHTML=issues.length?issues.map(x=>`<div class="rx-card text-xs text-amber-800">⚠ ${escRx(x)}</div>`).join(''):'<div class="rx-card text-xs text-emerald-700">No se detectaron errores estructurales básicos. Esto no garantiza que los datos históricos sean correctos: hay que contrastarlos con fuentes.</div>';
+    }
+    // Migración transparente: todos los campos originales se conservan; la nueva capa vive aparte.
+    window.addEventListener('DOMContentLoaded',()=>{loadResearchState();people.forEach(p=>{if(!p.research)p.research={certainty:'investigacion'};});});
+
+  </script>
+</body>
+</html>
