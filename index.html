@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeneaTree Pro — Archivo & Genealogía Integral</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para leer y procesar archivos Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-serif-title { font-family: 'Playfair Display', serif; }
+    
+    /* Conectores del árbol genealógico */
+    .tree-branch { position: relative; padding-top: 24px; }
+    .tree-branch::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 24px;
+      background: #cbd5e1;
+    }
+    .branch-connector {
+      position: relative;
+    }
+    .branch-connector::before {
+      content: '';
+      position: absolute;
+      top: -16px;
+      left: 25%;
+      width: 50%;
+      height: 2px;
+      background: #cbd5e1;
+    }
+    .branch-line-v {
+      position: absolute;
+      top: -16px;
+      height: 16px;
+      width: 2px;
+      background: #cbd5e1;
+    }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #f1f5f9; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Header Principal -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center font-bold text-lg shadow-inner">
+          🌳
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
+            GeneaTree Pro
+            <span class="text-[10px] bg-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full border border-indigo-400/30 font-semibold uppercase tracking-wider">Investigación</span>
+          </h1>
+          <p class="text-xs text-slate-400">Archivo documental, censos y linajes familiares</p>
+        </div>
+      </div>
+
+      <!-- Selector de Árboles y Acciones -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+          <label class="text-xs text-slate-300 font-medium">Árbol:</label>
+          <select id="treeSelector" onchange="switchTree(this.value)" class="bg-slate-900 text-white text-xs font-semibold rounded px-2 py-1 outline-none border border-slate-600 focus:border-indigo-400 cursor-pointer">
+            <option value="mauad_sosa">Familia Mauad — Sosa Ortiz (Mendoza / Líbano)</option>
+            <option value="ponce_rosales">Familia Ponce — Rosales (San Luis)</option>
+            <option value="nuevo_personal">+ Crear Nuevo Árbol Familiar</option>
+          </select>
+        </div>
+
+        <button onclick="exportJSONBackup()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+          💾 Respaldar
+        </button>
+      </div>
+    </div>
+
+    <!-- Navegación por Pestañas -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-6 text-sm font-medium border-t border-slate-800/60 overflow-x-auto scrollbar-thin">
+      <button onclick="setTab('tree')" id="tab-btn-tree" class="tab-btn py-2.5 border-b-2 border-indigo-400 text-indigo-400 flex items-center gap-2 font-semibold">
+        <span>🌳</span> Árbol Genealógico
+      </button>
+      <button onclick="setTab('sheet')" id="tab-btn-sheet" class="tab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>📋</span> Planilla de Personas (<span id="count-persons">0</span>)
+      </button>
+      <button onclick="setTab('sources')" id="tab-btn-sources" class="tab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>📜</span> Fuentes, Actas & Bautismos (<span id="count-sources">0</span>)
+      </button>
+      <button onclick="setTab('timeline')" id="tab-btn-timeline" class="tab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>⏳</span> Línea de Tiempo
+      </button>
+      <button onclick="setTab('import_export')" id="tab-btn-import_export" class="tab-btn py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+        <span>📥</span> Importar / Exportar (Excel & CSV)
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- TAB 1: ÁRBOL VISUAL -->
+    <section id="view-tree" class="tab-view block space-y-4">
+      <!-- Barra de herramientas del árbol -->
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Visualización:</span>
+          <select id="branchFilter" onchange="renderTree()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium outline-none">
+            <option value="ALL">Todo el linaje ascendente</option>
+            <option value="PATERNA">Solo Rama Paterna</option>
+            <option value="MATERNA">Solo Rama Materna</option>
+          </select>
+          <input type="text" id="treeSearch" placeholder="Buscar familiar..." oninput="highlightNode(this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 w-44 outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="toggleAllBranches(true)" class="text-xs font-medium px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300">
+            ➕ Desplegar Todo
+          </button>
+          <button onclick="toggleAllBranches(false)" class="text-xs font-medium px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300">
+            ➖ Colapsar Todo
+          </button>
+          <button onclick="resetZoom()" class="text-xs font-medium px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300">
+            🎯 Centrar
+          </button>
+        </div>
+      </div>
+
+      <!-- Lienzo del árbol -->
+      <div class="bg-slate-100/70 border border-slate-200 rounded-2xl p-6 min-h-[620px] overflow-auto scrollbar-thin relative flex justify-center shadow-inner" id="treeCanvas">
+        <div id="treeContainer" class="py-6 transition-transform duration-200">
+          <!-- Renderizado dinámico del árbol genealógico -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: PLANILLA DE PERSONAS -->
+    <section id="view-sheet" class="tab-view hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Registro Individual de Personas</h2>
+          <p class="text-xs text-slate-500">Haz clic en cualquier persona para editar sus filiaciones o ver sus datos notariales</p>
+        </div>
+        <button onclick="openPersonModal()" class="text-xs font-semibold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm flex items-center gap-2 transition">
+          <span>➕</span> Agregar Persona
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto max-h-[600px] scrollbar-thin">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900 text-white uppercase text-[10px] tracking-wider sticky top-0 z-10">
+              <tr>
+                <th class="p-3">ID</th>
+                <th class="p-3">Nombre Completo</th>
+                <th class="p-3">Sexo</th>
+                <th class="p-3">Nacimiento</th>
+                <th class="p-3">Lugar Nac.</th>
+                <th class="p-3">Defunción</th>
+                <th class="p-3">Padre</th>
+                <th class="p-3">Madre</th>
+                <th class="p-3">Cónyuge</th>
+                <th class="p-3">Certeza</th>
+                <th class="p-3 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="personsTableBody" class="divide-y divide-slate-100">
+              <!-- Filas dinámicas -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: FUENTES DOCUMENTALES -->
+    <section id="view-sources" class="tab-view hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Repositorio Documental & Fuentes Notariales</h2>
+          <p class="text-xs text-slate-500">Partidas de registro civil, actas de bautismo (FamilySearch) y censos históricos</p>
+        </div>
+        <button onclick="openSourceModal()" class="text-xs font-semibold px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center gap-2 transition">
+          <span>📜</span> Nueva Fuente / Bautismo
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="sourcesGrid">
+        <!-- Tarjetas de fuentes documentales -->
+      </div>
+    </section>
+
+    <!-- TAB 4: LÍNEA DE TIEMPO -->
+    <section id="view-timeline" class="tab-view hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <h2 class="text-base font-bold text-slate-900">Cronología Familiar & Hitos Notariales</h2>
+        <p class="text-xs text-slate-500">Orden cronológico automático de nacimientos, matrimonios y decesos documentados</p>
+      </div>
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="relative border-l-2 border-indigo-200 ml-4 pl-6 space-y-6" id="timelineList">
+          <!-- Hitos temporales -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: IMPORTAR / EXPORTAR -->
+    <section id="view-import_export" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Tarjeta Importar Excel (.xlsx) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xl">
+              📊
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900">Cargar Archivo Excel (.xlsx)</h3>
+              <p class="text-xs text-slate-500">Soporta la planilla Familia (1).xlsx o el modelo genealógico</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Arrastra directamente tu archivo Excel o haz clic en el botón. El lector procesará las hojas de <strong>Partidas_Nacimiento</strong>, <strong>Partidas_Casamiento</strong>, <strong>Partidas_Defuncion</strong> o las hojas <strong>PERSONAS</strong> y <strong>FUENTES</strong>.
+          </p>
+          <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition cursor-pointer" onclick="document.getElementById('excelFileInput').click()">
+            <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+            <p class="text-xs font-semibold text-indigo-600">Haz clic aquí para seleccionar tu archivo Excel</p>
+            <p class="text-[10px] text-slate-400 mt-1">Formatos soportados: .xlsx y .xls</p>
+          </div>
+          <div id="excelUploadStatus" class="text-xs font-medium text-emerald-600 hidden"></div>
+        </div>
+
+        <!-- Tarjeta Respaldos JSON -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl">
+              💾
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-900">Copia de Seguridad Completa (JSON)</h3>
+              <p class="text-xs text-slate-500">Guarda o restaura todo tu árbol genealógico</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Exporta todos los datos cargados a un archivo para abrirlo en otra computadora o restaurarlo si borras la memoria del navegador.
+          </p>
+          <div class="flex gap-3">
+            <button onclick="exportJSONBackup()" class="flex-1 text-xs font-semibold py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition">
+              Descargar Respaldo JSON
+            </button>
+            <button onclick="document.getElementById('jsonFileInput').click()" class="flex-1 text-xs font-semibold py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 rounded-lg transition">
+              Restaurar Respaldo
+            </button>
+            <input type="file" id="jsonFileInput" accept=".json" class="hidden" onchange="handleJSONUpload(event)">
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- DRAWER / PANEL LATERAL DE DETALLES -->
+  <aside id="sideDrawer" class="fixed inset-y-0 right-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+      <h3 class="font-bold text-sm" id="drawerTitle">Ficha Notarial del Familiar</h3>
+      <button onclick="closeDrawer()" class="text-slate-400 hover:text-white font-bold text-base px-2">✕</button>
+    </div>
+    <div class="p-6 overflow-y-auto flex-1 space-y-4 text-xs scrollbar-thin" id="drawerContent">
+      <!-- Contenido inyectado dinámicamente -->
+    </div>
+  </aside>
+
+  <!-- MODAL PERSONA (CREAR / EDITAR) -->
+  <div id="personModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto scrollbar-thin">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-base text-slate-900" id="personModalTitle">Nueva Persona</h3>
+        <button onclick="closePersonModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <form id="personForm" onsubmit="savePersonForm(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="formPersonID">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre y Apellido</label>
+          <input type="text" id="formPersonNombre" required class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Sexo</label>
+            <select id="formPersonSexo" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+              <option value="M">Masculino (M)</option>
+              <option value="F">Femenino (F)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Certeza Histórica</label>
+            <select id="formPersonCerteza" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+              <option value="Documentado">Documentado (Con acta)</option>
+              <option value="Probable">Probable (Inferido)</option>
+              <option value="En investigación">En investigación (Hipótesis)</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha Nacimiento</label>
+            <input type="text" id="formPersonNac" placeholder="DD/MM/AAAA o año aprox" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Lugar Nacimiento</label>
+            <input type="text" id="formPersonLugarNac" placeholder="Localidad, Provincia" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha Defunción</label>
+            <input type="text" id="formPersonDef" placeholder="Dejar vacío si vive" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Profesión</label>
+            <input type="text" id="formPersonProf" placeholder="Labrador, Comerciante..." class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Padre</label>
+            <select id="formPersonPadre" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+              <option value="">-- Sin asignar --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Madre</label>
+            <select id="formPersonMadre" class="w-full border border-slate-300 rounded-lg p-2 outline-none">
+              <option value="">-- Sin asignar --</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Notas Notariales / Actas / Referencias</label>
+          <textarea id="formPersonNotas" rows="3" class="w-full border border-slate-300 rounded-lg p-2 outline-none" placeholder="Tomo, folio, número de acta, observaciones..."></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="closePersonModal()" class="px-4 py-2 border rounded-lg hover:bg-slate-100 font-semibold text-slate-700">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPT CON DATOS PRECARGADOS Y LÓGICA COMPLETA -->
+  <script>
+    // BASE DE DATOS LOCAL CON LOS DOS ÁRBOLES PRECARGADOS
+    const DEFAULT_DATA = {
+      currentTree: "mauad_sosa",
+      trees: {
+        mauad_sosa: {
+          name: "Familia Mauad — Sosa Ortiz",
+          rootId: "M01", // Nashira Daniela Mauad Sosa
+          secondaryRootId: "M02",
+          persons: [
+            // Gen 1
+            { id: "M01", nombre: "Nashira Daniela Mauad Sosa", sexo: "F", nac: "17/07/1994", lugar: "Mendoza", def: "", padre: "M04", madre: "M05", conyuge: "", prof: "", certeza: "Documentado", notas: "DNI 38.384.887 / Acta N° 1245" },
+            { id: "M02", nombre: "Shaira Soledad Mauad Sosa", sexo: "F", nac: "10/10/1990", lugar: "Mendoza", def: "", padre: "M04", madre: "M05", conyuge: "", prof: "", certeza: "Documentado", notas: "Acta Nacimiento N° 1673" },
+            { id: "M03", nombre: "Emiliano Yair Mauad Sosa", sexo: "M", nac: "23/01/1993", lugar: "Mendoza", def: "", padre: "M04", madre: "M05", conyuge: "", prof: "", certeza: "Documentado", notas: "Acta Nacimiento N° 215" },
+            // Gen 2
+            { id: "M04", nombre: "Daniel Osvaldo Mauad", sexo: "M", nac: "13/04/1962", lugar: "Mendoza", def: "", padre: "M06", madre: "M07", conyuge: "M05", prof: "", certeza: "Documentado", notas: "DNI 14.532.478. Matrimonio el 26/01/1990" },
+            { id: "M05", nombre: "Claudia Mónica Sosa Ortíz", sexo: "F", nac: "04/05/1968", lugar: "Mendoza", def: "", padre: "M08", madre: "M09", conyuge: "M04", prof: "", certeza: "Documentado", notas: "DNI 20.334.821. Matrimonio el 26/01/1990" },
+            // Gen 3
+            { id: "M06", nombre: "Antonio Mauad", sexo: "M", nac: "13/01/1929", lugar: "Mendoza", def: "", padre: "M10", madre: "M11", conyuge: "M07", prof: "Comerciante", certeza: "Documentado", notas: "Casado el 20/01/1956 con Angela Teresa Tanúz" },
+            { id: "M07", nombre: "Angela Teresa Tanos (Tanúz)", sexo: "F", nac: "28/10/1935", lugar: "Mendoza", def: "", padre: "M12", madre: "M13", conyuge: "M06", prof: "Quehaceres domésticos", certeza: "Documentado", notas: "Hija de Antonio Tanus y Rosalía Alba" },
+            { id: "M08", nombre: "Julio Cesar Sosa", sexo: "M", nac: "02/06/1941", lugar: "Mendoza", def: "", padre: "M14", madre: "M15", conyuge: "M09", prof: "", certeza: "Documentado", notas: "L.E. 6.886.700. Casado el 23/06/1966 con Rosario Antonia Ortiz" },
+            { id: "M09", nombre: "Rosario Antonia Ortíz", sexo: "F", nac: "12/04/1943", lugar: "Mendoza", def: "", padre: "M16", madre: "M17", conyuge: "M08", prof: "", certeza: "Documentado", notas: "L.C. 4.254.195. Casada el 23/06/1966 con Julio Cesar Sosa" },
+            // Gen 4
+            { id: "M10", nombre: "Juan Mauad", sexo: "M", nac: "1906 (aprox)", lugar: "Monte Líbano, Siria/Líbano", def: "28/01/1975", padre: "M18", madre: "M19", conyuge: "M11", prof: "Comerciante", certeza: "Documentado", notas: "Inmigrante libanés. Casado el 16/07/1927 en Mendoza con María Virginia Marcos" },
+            { id: "M11", nombre: "María Virginia Marcos", sexo: "F", nac: "16/05/1911", lugar: "Barriales, Junín, Mendoza", def: "", padre: "M20", madre: "M21", conyuge: "M10", prof: "", certeza: "Documentado", notas: "Hija de José Marcos y Elena Yamin" },
+            { id: "M12", nombre: "Antonio Tanus (Tanuz)", sexo: "M", nac: "1893 (aprox)", lugar: "Líbano/Siria", def: "16/10/1970", padre: "M22", madre: "M23", conyuge: "M13", prof: "Comerciante", certeza: "Documentado", notas: "Falleció a los 77 años. Hijo de José Tanuz y Abaca Bucasum" },
+            { id: "M13", nombre: "Rosalía Alba (Alva)", sexo: "F", nac: "04/09/1901", lugar: "El Totoral, San Luis", def: "22/10/1969", padre: "M24", madre: "M25", conyuge: "M12", prof: "Labores", certeza: "Documentado", notas: "Nacida en El Totoral, San Luis. Defunción en Mendoza a los 68 años" },
+            { id: "M14", nombre: "Roberto Sosa", sexo: "M", nac: "17/10/1917", lugar: "Mendoza", def: "", padre: "M26", madre: "M27", conyuge: "M15", prof: "Agricultor", certeza: "Documentado", notas: "Hijo de Rodolfo Sosa y Delia Clotilde Martínez" },
+            { id: "M15", nombre: "Leonor Garro", sexo: "F", nac: "10/06/1917", lugar: "Chapanay, San Martín, Mendoza", def: "", padre: "M28", madre: "M29", conyuge: "M14", prof: "", certeza: "Documentado", notas: "Hija de Domingo Garro e Isidora Aguilera" },
+            { id: "M16", nombre: "Justiniano Ortíz", sexo: "M", nac: "05/09/1912", lugar: "Mendoza Capital", def: "", padre: "M30", madre: "M31", conyuge: "M17", prof: "Agricultor", certeza: "Documentado", notas: "Casado el 12/02/1938 con Antonia Roig" },
+            { id: "M17", nombre: "Antonia Roig", sexo: "F", nac: "17/08/1919", lugar: "Mendoza", def: "", padre: "M32", madre: "M33", conyuge: "M16", prof: "Quehaceres domésticos", certeza: "Documentado", notas: "Hija de Jaime Roig y Antonia Sureda" },
+            // Gen 5 & Ancestros
+            { id: "M18", nombre: "Gottas Mauad", sexo: "M", nac: "1880 (aprox)", lugar: "Líbano", def: "", padre: "", madre: "", conyuge: "M19", prof: "", certeza: "Documentado", notas: "Padre de Juan Mauad" },
+            { id: "M19", nombre: "Dibe Karam (Dive Caram)", sexo: "F", nac: "1885 (aprox)", lugar: "Líbano", def: "09/08/1971", padre: "M34", madre: "M35", conyuge: "M18", prof: "", certeza: "Documentado", notas: "Fallecida en Mendoza a los 86 años. Hija de Antonio Caram y Lucía Yamin" },
+            { id: "M20", nombre: "José Marcos", sexo: "M", nac: "1889 (aprox)", lugar: "Líbano (Imp. Otomano)", def: "", padre: "", madre: "", conyuge: "M21", prof: "Comerciante", certeza: "Documentado", notas: "Casado el 08/06/1910 con Elena Yamin" },
+            { id: "M21", nombre: "Elena Yamin", sexo: "F", nac: "1891 (aprox)", lugar: "Líbano (Imp. Otomano)", def: "21/09/1965", padre: "M36", madre: "M37", conyuge: "M20", prof: "", certeza: "Documentado", notas: "Hija de Pedro Juan Yamin y Latife Neyem" },
+            { id: "M22", nombre: "José Tanuz", sexo: "M", nac: "1865 (aprox)", lugar: "Líbano/Siria", def: "", padre: "", madre: "", conyuge: "M23", prof: "", certeza: "Documentado", notas: "Padre de Antonio Tanuz" },
+            { id: "M23", nombre: "Abaca Bucasum", sexo: "F", nac: "1870 (aprox)", lugar: "Líbano/Siria", def: "", padre: "", madre: "", conyuge: "M22", prof: "", certeza: "Documentado", notas: "Madre de Antonio Tanuz" },
+            { id: "M24", nombre: "Francisco Alba (Alva)", sexo: "M", nac: "1874 (aprox)", lugar: "San Luis", def: "09/01/1947", padre: "", madre: "M38", conyuge: "M25", prof: "Labrador", certeza: "Documentado", notas: "Falleció a los 73 años en Uruguay 237, Mercedes, San Luis" },
+            { id: "M25", nombre: "Rosario Isidora Montivero", sexo: "F", nac: "1880 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "M24", prof: "Labores", certeza: "Documentado", notas: "Madre de Rosalía Alba" },
+            { id: "M26", nombre: "Rodolfo Sosa", sexo: "M", nac: "1883 (aprox)", lugar: "Mendoza", def: "", padre: "", madre: "", conyuge: "M27", prof: "Agricultor", certeza: "Documentado", notas: "Padre de Roberto Sosa" },
+            { id: "M27", nombre: "Delia Clotilde Martínez", sexo: "F", nac: "03/06/1893", lugar: "Mendoza", def: "", padre: "M39", madre: "M40", conyuge: "M26", prof: "", certeza: "Documentado", notas: "Hija de José Antonio Martínez y Victoria Fernández" },
+            { id: "M28", nombre: "Domingo Garro", sexo: "M", nac: "1882 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "M29", prof: "Agricultor", certeza: "Documentado", notas: "Originario de San Luis, radicado en Chapanay, Mendoza" },
+            { id: "M29", nombre: "Isidora Aguilera", sexo: "F", nac: "1891 (aprox)", lugar: "Mendoza", def: "", padre: "", madre: "", conyuge: "M28", prof: "", certeza: "Documentado", notas: "Madre de Leonor Garro" },
+            { id: "M30", nombre: "Juan Francisco Ortíz", sexo: "M", nac: "1885 (aprox)", lugar: "Argentina", def: "", padre: "", madre: "", conyuge: "M31", prof: "", certeza: "Documentado", notas: "Padre de Justiniano Ortiz" },
+            { id: "M31", nombre: "Rosario Alaniz", sexo: "F", nac: "1890 (aprox)", lugar: "Argentina", def: "", padre: "", madre: "", conyuge: "M30", prof: "", certeza: "Documentado", notas: "Madre de Justiniano Ortiz" },
+            { id: "M32", nombre: "Jaime (Jayme) Roig", sexo: "M", nac: "21/08/1885", lugar: "Manacor, Mallorca, España", def: "08/06/1938", padre: "M41", madre: "M42", conyuge: "M33", prof: "Agricultor", certeza: "Documentado", notas: "Falleció en Rodeo del Medio, Maipú, a los 52 años" },
+            { id: "M33", nombre: "Antonia Sureda", sexo: "F", nac: "1881 (aprox)", lugar: "Manacor, Mallorca, España", def: "24/06/1957", padre: "M43", madre: "M44", conyuge: "M32", prof: "", certeza: "Documentado", notas: "Falleció en Hospital Carlos Ponce, Tunuyán, a los 76 años" },
+            { id: "M34", nombre: "Antonio Caram", sexo: "M", nac: "1860 (aprox)", lugar: "Líbano", def: "", padre: "", madre: "", conyuge: "M35", prof: "", certeza: "Documentado", notas: "Padre de Dive Caram" },
+            { id: "M35", nombre: "Lucía Yamin", sexo: "F", nac: "1865 (aprox)", lugar: "Líbano", def: "", padre: "", madre: "", conyuge: "M34", prof: "", certeza: "Documentado", notas: "Madre de Dive Caram" },
+            { id: "M36", nombre: "Pedro Juan Yamin", sexo: "M", nac: "1865 (aprox)", lugar: "Líbano", def: "", padre: "", madre: "", conyuge: "M37", prof: "", certeza: "Documentado", notas: "Padre de Elena Yamin" },
+            { id: "M37", nombre: "Latife Neyem", sexo: "F", nac: "1870 (aprox)", lugar: "Líbano", def: "", padre: "", madre: "", conyuge: "M36", prof: "", certeza: "Documentado", notas: "Madre de Elena Yamin" },
+            { id: "M38", nombre: "Eulalia Alba", sexo: "F", nac: "1853 (aprox)", lugar: "San Luis", def: "03/06/1923", padre: "", madre: "M45", conyuge: "", prof: "Quehaceres domésticos", certeza: "Documentado", notas: "Falleció a los 70 años en Villa Mercedes, San Luis" },
+            { id: "M39", nombre: "José Antonio Martínez", sexo: "M", nac: "11/09/1867", lugar: "Mendoza", def: "23/02/1938", padre: "M46", madre: "M47", conyuge: "M40", prof: "Agricultor", certeza: "Documentado", notas: "Falleció a los 70 años, 5 meses y 12 días" },
+            { id: "M40", nombre: "Victoria Fernández", sexo: "F", nac: "1870 (aprox)", lugar: "Mendoza", def: "", padre: "M48", madre: "", conyuge: "M39", prof: "", certeza: "Documentado", notas: "Hija de Pedro Fernández Vior" },
+            { id: "M41", nombre: "Miguel Roig", sexo: "M", nac: "1855 (aprox)", lugar: "Manacor, Mallorca", def: "", padre: "", madre: "", conyuge: "M42", prof: "", certeza: "Documentado", notas: "Padre de Jaime Roig" },
+            { id: "M42", nombre: "Sebastiana Grimalt", sexo: "F", nac: "1860 (aprox)", lugar: "Manacor, Mallorca", def: "", padre: "", madre: "", conyuge: "M41", prof: "", certeza: "Documentado", notas: "Madre de Jaime Roig" },
+            { id: "M43", nombre: "Antonio Sureda", sexo: "M", nac: "1855 (aprox)", lugar: "Mallorca", def: "", padre: "", madre: "", conyuge: "M44", prof: "", certeza: "Documentado", notas: "Padre de Antonia Sureda" },
+            { id: "M44", nombre: "María Llull", sexo: "F", nac: "1860 (aprox)", lugar: "Mallorca", def: "", padre: "", madre: "", conyuge: "M43", prof: "", certeza: "Documentado", notas: "Madre de Antonia Sureda" },
+            { id: "M45", nombre: "Cruz Alba", sexo: "F", nac: "1830 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "", prof: "", certeza: "Documentado", notas: "Madre de Eulalia Alba" },
+            { id: "M46", nombre: "Domingo Martínez", sexo: "M", nac: "1840 (aprox)", lugar: "Argentina", def: "", padre: "", madre: "", conyuge: "M47", prof: "", certeza: "Documentado", notas: "Padre de José Antonio Martínez" },
+            { id: "M47", nombre: "Josefa Fernández", sexo: "F", nac: "1845 (aprox)", lugar: "Argentina", def: "", padre: "", madre: "", conyuge: "M46", prof: "", certeza: "Documentado", notas: "Madre de José Antonio Martínez" },
+            { id: "M48", nombre: "Pedro Fernández Vior", sexo: "M", nac: "1837 (aprox)", lugar: "España / Argentina", def: "20/12/1905", padre: "", madre: "", conyuge: "", prof: "", certeza: "Documentado", notas: "Hijo de Vicente Fernández y María Juana Vior" }
+          ],
+          sources: [
+            { id: "S01", titulo: "Nacimiento: Rosalia Alva", tipo: "Registro Civil", ref: "Acta 52, Folio 54, Tomo 1", fecha: "08/09/1901", loc: "Cañada Honda, San Luis", transcripcion: "Nacida el 04/09/1901 en El Totoral. Padres: Francisco Alba (27 a.) y Rosario Montivero (21 a.)." },
+            { id: "S02", titulo: "Nacimiento: María Birginia Marcos", tipo: "Registro Civil", ref: "Acta 122, Barriales", fecha: "16/05/1911", loc: "Barriales, Junín, Mendoza", transcripcion: "Padres: Jose Marcos (22 a., comerciante, turco) y Elena Yamin (20 a., turca)." },
+            { id: "S03", titulo: "Defunción: Eulalia Alba", tipo: "Registro Civil", ref: "Tomo 12, Folio 50, Acta 65", fecha: "03/06/1923", loc: "Villa Mercedes, San Luis", transcripcion: "Falleció a los 70 años. Se presenta su hijo Francisco Alba de 47 años." },
+            { id: "S04", titulo: "Defunción: Jaime Roig", tipo: "Registro Civil", ref: "Libro 1929, Acta 33", fecha: "08/06/1938", loc: "Maipú, Mendoza", transcripcion: "Falleció a los 52 años en Rodeo del Medio. Nacido en Manacor, Mallorca, España. Padres: Miguel Roig y Sebastiana Grimalt." },
+            { id: "S05", titulo: "Defunción: Francisco Alva", tipo: "Registro Civil", ref: "Tomo 141, Folio 58, Acta 12", fecha: "09/01/1947", loc: "Villa Mercedes, San Luis", transcripcion: "Falleció a los 73 años en Uruguay 237, Mercedes, San Luis." }
+          ]
+        },
+        ponce_rosales: {
+          name: "Familia Ponce — Rosales",
+          rootId: "P1", // Juan Oscar Ponce
+          secondaryRootId: "R1", // Hilda Gladys Rosales
+          persons: [
+            { id: "P1", nombre: "Juan Oscar Ponce", sexo: "M", nac: "02/05/1955", lugar: "Villa Mercedes, San Luis", def: "", padre: "P2", madre: "P3", conyuge: "R1", prof: "Empleado", certeza: "Documentado", notas: "Acta N° 4, Folio 4, Tomo 100 (1955). Casado con Hilda Gladys Rosales" },
+            { id: "R1", nombre: "Hilda Gladys Rosales", sexo: "F", nac: "11/10/1959", lugar: "San Martín, San Luis", def: "", padre: "R2", madre: "R3", conyuge: "P1", prof: "Docente", certeza: "Documentado", notas: "Acta N° 11, Folio 11, Tomo 37 (1959). Casada con Juan Oscar Ponce" },
+            { id: "P2", nombre: "Carlos Juan Ponce (Hijo)", sexo: "M", nac: "18/05/1931", lugar: "El Retiro, San Martín", def: "", padre: "P4", madre: "P5", conyuge: "P3", prof: "Comerciante", certeza: "Documentado", notas: "Acta N° 32, Folio 155, Tomo 20 (1931)" },
+            { id: "P3", nombre: "Elba Nelly Reynoso", sexo: "F", nac: "20/12/1937", lugar: "Villa Mercedes, San Luis", def: "", padre: "P6", madre: "P7", conyuge: "P2", prof: "Labores", certeza: "Documentado", notas: "Acta N° 635, Folio 71, Tomo 156 (1937)" },
+            { id: "R2", nombre: "José Eligio Rosales", sexo: "M", nac: "27/04/1915", lugar: "El Manantial, San Martín", def: "02/01/1990", padre: "R4", madre: "R5", conyuge: "R3", prof: "Jubilado", certeza: "Documentado", notas: "Def: Acta N° 1, Folio 6, Tomo 23 (1990). Falleció a los 74 años" },
+            { id: "R3", nombre: "María Sara Fernández", sexo: "F", nac: "24/03/1928", lugar: "Alto Grande, San Martín", def: "", padre: "R6", madre: "R7", conyuge: "R2", prof: "Labores", certeza: "Documentado", notas: "Acta N° 16, Folio 39, Tomo 21 (1928)" },
+            { id: "P4", nombre: "Digno Ponce", sexo: "M", nac: "1891 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "P8", conyuge: "P5", prof: "Propietario", certeza: "Documentado", notas: "40 años en 1931. Esposo de Ernestina Barzola e hijo de Rosa Ponce" },
+            { id: "P5", nombre: "Ernestina Barzola", sexo: "F", nac: "26/02/1900", lugar: "Estancia Alta, San Martín", def: "", padre: "P10", madre: "P11", conyuge: "P4", prof: "", certeza: "Documentado", notas: "Acta N° 82, Folio 5, Tomo 3 (1900). Hija de Juan Barzola y Ventura Díaz" },
+            { id: "P6", nombre: "Estanislao Reinoso", sexo: "M", nac: "07/05/1902", lugar: "Villa Mercedes", def: "", padre: "P12", madre: "P13", conyuge: "P7", prof: "Jornalero", certeza: "Documentado", notas: "Acta N° 305, Folio 36, Tomo 12 (1902)" },
+            { id: "P7", nombre: "Paula Agüero", sexo: "F", nac: "1905 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "P6", prof: "", certeza: "Documentado", notas: "Madre de Elba Nelly Reynoso" },
+            { id: "R4", nombre: "José Ramón Rosales", sexo: "M", nac: "1882 (aprox)", lugar: "San Martín", def: "", padre: "R8", madre: "R9", conyuge: "R5", prof: "", certeza: "Documentado", notas: "33 años en acta de 1915" },
+            { id: "R5", nombre: "María Carmen Morales", sexo: "F", nac: "1876 (aprox)", lugar: "San Martín", def: "", padre: "", madre: "R10", conyuge: "R4", prof: "", certeza: "Documentado", notas: "39 años en acta de 1915" },
+            { id: "R6", nombre: "Ildefonso Fernández", sexo: "M", nac: "1893 (aprox)", lugar: "Alto Grande", def: "", padre: "", madre: "", conyuge: "R7", prof: "Propietario", certeza: "Documentado", notas: "35 años en 1928" },
+            { id: "R7", nombre: "Juana Coria", sexo: "F", nac: "1900 (aprox)", lugar: "San Martín", def: "", padre: "", madre: "", conyuge: "R6", prof: "", certeza: "Documentado", notas: "28 años en 1928" },
+            { id: "P8", nombre: "Rosa Ponce", sexo: "F", nac: "1865 (aprox)", lugar: "San Luis", def: "Antes de 1931", padre: "", madre: "", conyuge: "", prof: "", certeza: "Documentado", notas: "Madre de Digno Ponce" },
+            { id: "P10", nombre: "Juan Barzola", sexo: "M", nac: "1864 (aprox)", lugar: "San Martín", def: "", padre: "", madre: "", conyuge: "P11", prof: "", certeza: "Documentado", notas: "36 años en 1900. No sabía firmar" },
+            { id: "P11", nombre: "Ventura Díaz", sexo: "F", nac: "1860 (aprox)", lugar: "San Martín", def: "", padre: "", madre: "", conyuge: "P10", prof: "", certeza: "Documentado", notas: "40 años en 1900" },
+            { id: "P12", nombre: "Silvano Reynoso", sexo: "M", nac: "1868 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "P13", prof: "", certeza: "Documentado", notas: "34 años en 1902" },
+            { id: "P13", nombre: "Eusebia Esquivel", sexo: "F", nac: "1875 (aprox)", lugar: "San Luis", def: "", padre: "", madre: "", conyuge: "P12", prof: "", certeza: "Documentado", notas: "27 años en 1902" }
+          ],
+          sources: [
+            { id: "SP1", titulo: "Nacimiento: Juan Oscar Ponce", tipo: "Registro Civil", ref: "Acta N° 4, Tomo 100", fecha: "02/05/1955", loc: "Villa Mercedes", transcripcion: "Padres: Carlos Juan Ponce (24) y Elva Nelly Reynoso (17)." },
+            { id: "SP2", titulo: "Nacimiento: Hilda Gladys Rosales", tipo: "Registro Civil", ref: "Acta N° 11, Tomo 37", fecha: "11/10/1959", loc: "San Martín", transcripcion: "Padres: José Eligio Rosales (44) y María Sara Fernández (31)." }
+          ]
+        }
+      }
+    };
+
+    // Estado en memoria
+    let appData = JSON.parse(localStorage.getItem("geneatree_integral_data")) || DEFAULT_DATA;
+    let collapsedNodes = new Set();
+    let zoomLevel = 1;
+
+    function saveData() {
+      localStorage.setItem("geneatree_integral_data", JSON.stringify(appData));
+    }
+
+    function getCurrentTree() {
+      return appData.trees[appData.currentTree] || appData.trees.mauad_sosa;
+    }
+
+    function switchTree(treeKey) {
+      if (treeKey === "nuevo_personal") {
+        const nombre = prompt("Nombre del nuevo árbol familiar (ej: Familia Gómez):");
+        if (!nombre) {
+          document.getElementById("treeSelector").value = appData.currentTree;
+          return;
+        }
+        const key = "arbol_" + Date.now();
+        appData.trees[key] = {
+          name: nombre,
+          rootId: null,
+          persons: [],
+          sources: []
+        };
+        appData.currentTree = key;
+        const sel = document.getElementById("treeSelector");
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = nombre;
+        sel.insertBefore(opt, sel.lastElementChild);
+        sel.value = key;
+      } else {
+        appData.currentTree = treeKey;
+      }
+      saveData();
+      renderAll();
+    }
+
+    function setTab(tabName) {
+      document.querySelectorAll(".tab-view").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.remove("border-indigo-400", "text-indigo-400", "font-semibold");
+        btn.classList.add("border-transparent", "text-slate-400");
+      });
+      document.getElementById("view-" + tabName).classList.remove("hidden");
+      const activeBtn = document.getElementById("tab-btn-" + tabName);
+      if (activeBtn) {
+        activeBtn.classList.add("border-indigo-400", "text-indigo-400", "font-semibold");
+        activeBtn.classList.remove("border-transparent", "text-slate-400");
+      }
+    }
+
+    // RENDERIZADO DEL ÁRBOL GENEALÓGICO DINÁMICO
+    function renderTree() {
+      const tree = getCurrentTree();
+      const container = document.getElementById("treeContainer");
+      if (!tree || !tree.persons.length) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-400">No hay personas cargadas en este árbol.</div>`;
+        return;
+      }
+
+      const pMap = {};
+      tree.persons.forEach(p => pMap[p.id] = p);
+
+      // Si no hay root, tomamos la persona más joven o primera
+      let root = pMap[tree.rootId] || tree.persons[0];
+      let secondary = tree.secondaryRootId ? pMap[tree.secondaryRootId] : null;
+
+      container.innerHTML = `
+        <div class="flex flex-col items-center">
+          <!-- Ancestro / Ascendencia Recursiva -->
+          <div class="flex justify-center items-end gap-12 mb-8">
+            ${renderAncestorsRecursive(root.id, pMap, 0)}
+          </div>
+
+          <!-- Nivel Central: Persona Raíz / Pareja -->
+          <div class="pt-6 border-t-2 border-indigo-300 relative flex items-center justify-center gap-6">
+            <div class="absolute -top-3 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">
+              Generación Principal
+            </div>
+            ${renderPersonCard(root)}
+            ${secondary ? renderPersonCard(secondary) : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAncestorsRecursive(personId, pMap, depth) {
+      if (!personId || depth > 5) return '';
+      const p = pMap[personId];
+      if (!p) return '';
+
+      const father = pMap[p.padre];
+      const mother = pMap[p.madre];
+      const hasParents = father || mother;
+      const isCollapsed = collapsedNodes.has(p.id);
+
+      let parentsHtml = '';
+      if (hasParents && !isCollapsed) {
+        parentsHtml = `
+          <div class="flex justify-center gap-6 mb-6 relative">
+            <div class="absolute -bottom-6 left-1/4 right-1/4 h-6 border-b-2 border-l-2 border-r-2 border-slate-300 pointer-events-none"></div>
+            <div>${father ? renderAncestorsRecursive(father.id, pMap, depth + 1) : '<div class="w-44 text-center text-[10px] text-slate-300 italic py-4">Padre no documentado</div>'}</div>
+            <div>${mother ? renderAncestorsRecursive(mother.id, pMap, depth + 1) : '<div class="w-44 text-center text-[10px] text-slate-300 italic py-4">Madre no documentada</div>'}</div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="flex flex-col items-center">
+          ${parentsHtml}
+          <div class="relative">
+            ${hasParents ? `
+              <button onclick="toggleCollapse('${p.id}')" class="absolute -top-3 right-2 z-10 w-5 h-5 bg-white border border-slate-300 rounded-full text-[10px] font-bold text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-xs">
+                ${isCollapsed ? '➕' : '➖'}
+              </button>
+            ` : ''}
+            ${renderPersonCard(p)}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPersonCard(p) {
+      const isM = p.sexo === "M";
+      const badgeColor = isM ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-rose-50 text-rose-700 border-rose-200";
+      const certaintyColor = p.certeza === "Documentado" ? "bg-emerald-500" : (p.certeza === "Probable" ? "bg-amber-500" : "bg-purple-500");
+
+      return `
+        <div onclick="openPersonDetails('${p.id}')" class="w-52 p-3.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-xs hover:shadow-md transition cursor-pointer relative group text-left">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">
+              ${isM ? '♂ Varón' : '♀ Mujer'}
+            </span>
+            <span class="w-2 h-2 rounded-full ${certaintyColor}" title="Certeza: ${p.certeza}"></span>
+          </div>
+          <h4 class="font-bold text-slate-900 text-xs leading-snug group-hover:text-indigo-600 transition truncate">${p.nombre}</h4>
+          <p class="text-[11px] text-slate-500 mt-0.5">⭐ ${p.nac || 'Desconocido'}</p>
+          ${p.def ? `<p class="text-[11px] text-slate-500">✝️ ${p.def}</p>` : ''}
+          <p class="text-[10px] text-slate-400 truncate mt-1">📍 ${p.lugar || 'Sin localidad'}</p>
+        </div>
+      `;
+    }
+
+    function toggleCollapse(personId) {
+      if (collapsedNodes.has(personId)) collapsedNodes.delete(personId);
+      else collapsedNodes.add(personId);
+      renderTree();
+    }
+
+    function toggleAllBranches(expand) {
+      if (expand) collapsedNodes.clear();
+      else {
+        getCurrentTree().persons.forEach(p => {
+          if (p.padre || p.madre) collapsedNodes.add(p.id);
+        });
+      }
+      renderTree();
+    }
+
+    function resetZoom() {
+      zoomLevel = 1;
+      document.getElementById("treeContainer").style.transform = `scale(1)`;
+    }
+
+    function highlightNode(query) {
+      const q = query.toLowerCase().trim();
+      document.querySelectorAll("#treeContainer .group").forEach(card => {
+        if (!q) {
+          card.classList.remove("ring-2", "ring-indigo-500");
+          return;
+        }
+        if (card.innerText.toLowerCase().includes(q)) {
+          card.classList.add("ring-2", "ring-indigo-500");
+        } else {
+          card.classList.remove("ring-2", "ring-indigo-500");
+        }
+      });
+    }
+
+    // TABLA DE PERSONAS
+    function renderPersonsTable() {
+      const tree = getCurrentTree();
+      const pMap = {};
+      tree.persons.forEach(p => pMap[p.id] = p);
+      const tbody = document.getElementById("personsTableBody");
+      
+      tbody.innerHTML = tree.persons.map(p => `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+          <td class="p-3 font-mono font-bold text-slate-400">${p.id}</td>
+          <td class="p-3 font-semibold text-slate-900">${p.nombre}</td>
+          <td class="p-3 font-medium ${p.sexo==='M'?'text-blue-600':'text-rose-600'}">${p.sexo}</td>
+          <td class="p-3 text-slate-600">${p.nac || '-'}</td>
+          <td class="p-3 text-slate-500">${p.lugar || '-'}</td>
+          <td class="p-3 text-slate-600">${p.def || '-'}</td>
+          <td class="p-3 text-slate-700">${p.padre && pMap[p.padre] ? pMap[p.padre].nombre : '-'}</td>
+          <td class="p-3 text-slate-700">${p.madre && pMap[p.madre] ? pMap[p.madre].nombre : '-'}</td>
+          <td class="p-3 text-slate-500">${p.conyuge && pMap[p.conyuge] ? pMap[p.conyuge].nombre : '-'}</td>
+          <td class="p-3">
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ${p.certeza==='Documentado'?'bg-emerald-100 text-emerald-800':(p.certeza==='Probable'?'bg-amber-100 text-amber-800':'bg-purple-100 text-purple-800')}">
+              ${p.certeza}
+            </span>
+          </td>
+          <td class="p-3 text-center">
+            <button onclick="editPerson('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-bold mr-2">Editar</button>
+            <button onclick="deletePerson('${p.id}')" class="text-rose-600 hover:text-rose-800 font-bold">Borrar</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById("count-persons").textContent = tree.persons.length;
+    }
+
+    // FUENTES DOCUMENTALES
+    function renderSources() {
+      const tree = getCurrentTree();
+      const grid = document.getElementById("sourcesGrid");
+      grid.innerHTML = (tree.sources || []).map(s => `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs hover:shadow-md transition space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+              ${s.tipo}
+            </span>
+            <span class="text-[10px] text-slate-400 font-mono">${s.id}</span>
+          </div>
+          <h4 class="font-bold text-slate-900 text-xs">${s.titulo}</h4>
+          <p class="text-[11px] text-slate-600"><strong>Ref:</strong> ${s.ref || s.referencia || '-'}</p>
+          <p class="text-[11px] text-slate-600"><strong>Lugar:</strong> ${s.loc || s.localidad || '-'}</p>
+          <div class="p-2.5 bg-slate-50 rounded-lg text-[11px] text-slate-700 italic border border-slate-100">
+            "${s.transcripcion}"
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById("count-sources").textContent = (tree.sources || []).length;
+    }
+
+    // LÍNEA DE TIEMPO
+    function renderTimeline() {
+      const tree = getCurrentTree();
+      const events = [];
+
+      tree.persons.forEach(p => {
+        if (p.nac) {
+          const year = parseInt(p.nac.match(/\d{4}/)?.[0] || 0);
+          if (year > 1800) events.push({ year, text: `Nacimiento de ${p.nombre}`, detalle: `Lugar: ${p.lugar || 'San Luis/Mendoza'} (${p.nac})` });
+        }
+        if (p.def) {
+          const year = parseInt(p.def.match(/\d{4}/)?.[0] || 0);
+          if (year > 1800) events.push({ year, text: `Fallecimiento de ${p.nombre}`, detalle: `Fecha: ${p.def}` });
+        }
+      });
+
+      events.sort((a, b) => a.year - b.year);
+      const list = document.getElementById("timelineList");
+      list.innerHTML = events.map(e => `
+        <div class="relative">
+          <div class="absolute -left-[31px] top-1 w-3.5 h-3.5 bg-indigo-500 rounded-full border-2 border-white shadow"></div>
+          <div class="text-xs font-bold text-indigo-700">${e.year}</div>
+          <div class="text-xs font-semibold text-slate-800">${e.text}</div>
+          <div class="text-[11px] text-slate-500">${e.detalle}</div>
+        </div>
+      `).join('');
+    }
+
+    // DETALLES DEL DRAWER
+    function openPersonDetails(id) {
+      const tree = getCurrentTree();
+      const p = tree.persons.find(x => x.id === id);
+      if (!p) return;
+
+      const pMap = {};
+      tree.persons.forEach(x => pMap[x.id] = x);
+      const padre = pMap[p.padre];
+      const madre = pMap[p.madre];
+
+      document.getElementById("drawerTitle").textContent = p.nombre;
+      document.getElementById("drawerContent").innerHTML = `
+        <div class="space-y-4">
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Filiación Notarial</p>
+            <p class="mt-1"><strong>Padre:</strong> ${padre ? padre.nombre : 'No consignado'}</p>
+            <p><strong>Madre:</strong> ${madre ? madre.nombre : 'No consignada'}</p>
+          </div>
+
+          <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Fechas & Hechos</p>
+            <p>⭐ <strong>Nacimiento:</strong> ${p.nac || 'Desconocido'}</p>
+            <p>📍 <strong>Lugar:</strong> ${p.lugar || 'Desconocido'}</p>
+            ${p.def ? `<p>✝️ <strong>Fallecimiento:</strong> ${p.def}</p>` : ''}
+            <p>💼 <strong>Profesión:</strong> ${p.prof || 'No declarada'}</p>
+          </div>
+
+          <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl">
+            <p class="text-[10px] font-bold text-indigo-800 uppercase">Transcripción & Actas</p>
+            <p class="mt-1 text-slate-700 whitespace-pre-line leading-relaxed">${p.notas || 'Sin notas registrales adicionales.'}</p>
+          </div>
+
+          <button onclick="editPerson('${p.id}'); closeDrawer();" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition">
+            ✏️ Editar Familiar
+          </button>
+        </div>
+      `;
+      document.getElementById("sideDrawer").classList.remove("translate-x-full");
+    }
+
+    function closeDrawer() {
+      document.getElementById("sideDrawer").classList.add("translate-x-full");
+    }
+
+    // MODAL PERSONA
+    function openPersonModal(editId = null) {
+      const tree = getCurrentTree();
+      const p = editId ? tree.persons.find(x => x.id === editId) : null;
+      
+      document.getElementById("personModalTitle").textContent = p ? "Editar Familiar" : "Nuevo Familiar";
+      document.getElementById("formPersonID").value = p ? p.id : "";
+      document.getElementById("formPersonNombre").value = p ? p.nombre : "";
+      document.getElementById("formPersonSexo").value = p ? p.sexo : "M";
+      document.getElementById("formPersonCerteza").value = p ? p.certeza : "Documentado";
+      document.getElementById("formPersonNac").value = p ? p.nac : "";
+      document.getElementById("formPersonLugarNac").value = p ? p.lugar : "";
+      document.getElementById("formPersonDef").value = p ? p.def : "";
+      document.getElementById("formPersonProf").value = p ? p.prof : "";
+      document.getElementById("formPersonNotas").value = p ? p.notas : "";
+
+      // Rellenar selects de padres
+      const selPadre = document.getElementById("formPersonPadre");
+      const selMadre = document.getElementById("formPersonMadre");
+      selPadre.innerHTML = '<option value="">-- Sin asignar --</option>';
+      selMadre.innerHTML = '<option value="">-- Sin asignar --</option>';
+
+      tree.persons.forEach(x => {
+        if (!p || x.id !== p.id) {
+          selPadre.innerHTML += `<option value="${x.id}" ${p && p.padre===x.id?'selected':''}>${x.nombre}</option>`;
+          selMadre.innerHTML += `<option value="${x.id}" ${p && p.madre===x.id?'selected':''}>${x.nombre}</option>`;
+        }
+      });
+
+      document.getElementById("personModal").classList.remove("hidden");
+    }
+
+    function closePersonModal() {
+      document.getElementById("personModal").classList.add("hidden");
+    }
+
+    function editPerson(id) {
+      openPersonModal(id);
+    }
+
+    function deletePerson(id) {
+      if (!confirm("¿Deseas eliminar a este familiar del árbol?")) return;
+      const tree = getCurrentTree();
+      tree.persons = tree.persons.filter(p => p.id !== id);
+      saveData();
+      renderAll();
+    }
+
+    function savePersonForm(e) {
+      e.preventDefault();
+      const tree = getCurrentTree();
+      const editId = document.getElementById("formPersonID").value;
+      
+      const newPerson = {
+        id: editId || "P_" + Date.now(),
+        nombre: document.getElementById("formPersonNombre").value.trim(),
+        sexo: document.getElementById("formPersonSexo").value,
+        certeza: document.getElementById("formPersonCerteza").value,
+        nac: document.getElementById("formPersonNac").value.trim(),
+        lugar: document.getElementById("formPersonLugarNac").value.trim(),
+        def: document.getElementById("formPersonDef").value.trim(),
+        prof: document.getElementById("formPersonProf").value.trim(),
+        padre: document.getElementById("formPersonPadre").value,
+        madre: document.getElementById("formPersonMadre").value,
+        notas: document.getElementById("formPersonNotas").value.trim()
+      };
+
+      if (editId) {
+        const idx = tree.persons.findIndex(x => x.id === editId);
+        if (idx >= 0) tree.persons[idx] = newPerson;
+      } else {
+        tree.persons.push(newPerson);
+      }
+
+      saveData();
+      closePersonModal();
+      renderAll();
+    }
+
+    // IMPORTACIÓN Y EXPORTACIÓN
+    function handleExcelUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const status = document.getElementById("excelUploadStatus");
+          status.classList.remove("hidden");
+          status.textContent = `Leyendo hojas: ${workbook.SheetNames.join(', ')}...`;
+
+          const tree = getCurrentTree();
+          let importedPersons = 0;
+
+          // Si contiene la hoja PERSONAS del modelo
+          if (workbook.Sheets["PERSONAS"]) {
+            const rawPersons = XLSX.utils.sheet_to_json(workbook.Sheets["PERSONAS"]);
+            tree.persons = rawPersons.map(r => ({
+              id: String(r.ID || r.Id || "P_" + Math.random().toString(36).substr(2, 5)),
+              nombre: r.Nombre || "",
+              sexo: r.Sexo || "M",
+              nac: r.Nacimiento ? String(r.Nacimiento) : "",
+              lugar: r.Lugar || "",
+              def: r.Defuncion ? String(r.Defuncion) : "",
+              padre: r.ID_Padre ? String(r.ID_Padre) : "",
+              madre: r.ID_Madre ? String(r.ID_Madre) : "",
+              conyuge: r.Conyuge ? String(r.Conyuge) : "",
+              prof: r.Profesion || "",
+              certeza: r.Certeza || "Documentado",
+              notas: r.Notas || ""
+            }));
+            importedPersons = tree.persons.length;
+          }
+
+          saveData();
+          renderAll();
+          status.textContent = `✅ ¡Excel importado exitosamente! (${importedPersons} personas cargadas).`;
+        } catch (err) {
+          alert("Error al leer el archivo Excel: " + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function exportJSONBackup() {
+      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `GeneaTree_Respaldo_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function handleJSONUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          appData = JSON.parse(evt.target.result);
+          saveData();
+          renderAll();
+          alert("Respaldo restaurado con éxito.");
+        } catch(err) {
+          alert("El archivo JSON no es válido.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderAll() {
+      renderTree();
+      renderPersonsTable();
+      renderSources();
+      renderTimeline();
+    }
+
+    // Inicializar
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("treeSelector").value = appData.currentTree;
+      renderAll();
+    });
+  </script>
+</body>
+</html>
